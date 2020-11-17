@@ -16,3 +16,4 @@ extras/four_step_pseudocode.pdf
 *.aux
 *.log
 *.synctex.gz
+*.rel
