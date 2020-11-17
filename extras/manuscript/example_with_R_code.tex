@@ -1,0 +1,90 @@
+\documentclass[11pt]{article}
+\usepackage{graphicx}
+\usepackage[a4paper,margin=2cm,noheadfoot]{geometry}
+
+\usepackage{xspace,color}
+\usepackage{url}
+\usepackage{listings}
+
+
+\lstset{commentstyle=\color{red},keywordstyle=\color{black},
+showstringspaces=false}
+\lstnewenvironment{rc}[1][]{\lstset{language=R}}{}
+\newcommand{\ri}[1]{\lstinline{#1}}  %% Short for 'R inline'
+
+\lstset{language=R}             % Set R to default language
+\begin{document}
+
+
+
+\title{Including R code and output in your latex document}
+\author{Stephen Eglen}
+\date{\today}
+
+\maketitle
+
+This short document shows you how you can include R code in your latex
+reports.  There are (probably) better ways, but this is certainly one
+good approach.  (If you come up with a nicer method, share it with the
+class.)  It relies on the \verb+listings+ package within latex, and so
+for further help, read its documentation by running:
+
+\begin{verbatim}
+texdoc listings
+\end{verbatim}
+
+All the files (including a Makefile) needed to recompile this document
+are available from:
+
+\url{http://www.damtp.cam.ac.uk/user/sje30/teaching/r/rlistings}
+
+
+
+\section{Including scripts}
+
+If your script is called \url{simple.R}, include it into your
+output by doing \verb+\lstinputlisting{simple.R}+ which should generate
+something like:
+
+\lstinputlisting{simple.R}
+
+
+
+\section{Including R code within text}
+
+To include small segments of R code within a paragraph, use the ri
+macro.  For example, \verb+\ri{x <- rnorm(20)}+ will generate
+\ri{x <- rnorm(20)} in the paragraph.
+
+If you have a group of R input (or output), just use the ``rc''
+environment around the block of code (or output).  See this example:
+
+\begin{rc}
+> a <- matrix(1:6, 2,3)
+> a
+     [,1] [,2] [,3]
+[1,]    1    3    5
+[2,]    2    4    6
+> 
+\end{rc}
+
+
+
+\clearpage
+\section{Including graphical output}
+
+For nearly all graphs you are likely to generate, the best way of
+including them in your article is by asking R to generate a pdf of the
+graph. Include it with the includegraphics macro.  Please refrain from
+including bitmap images unless you have a particular need (e.g. the
+pdf is too large).
+
+\begin{figure}
+  \centering
+  \includegraphics[width=8cm]{simple.pdf}
+  \caption{Example output from R.  Make sure that you generate PDF
+    images, and that your images have meaningful captions.}
+  \label{fig:example}
+\end{figure}
+
+\end{document}
