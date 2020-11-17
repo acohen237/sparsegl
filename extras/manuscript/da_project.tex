@@ -203,10 +203,30 @@ First we will compare the two algorithms within the sparsegl function, threestep
 
 For all comparisons, we use the R package microbenchmark, which compares two or more operations by performing them repeatedly (100 for our analysis) and collecting the times to perform each operation.
 
+\includegraphics[scale=0.5]{threevsfour.png}
+
 We can see that there is not a big difference in the time it takes to perform the threestep algorithm vs the fourstep algorithm. This is possibly a result of the simulated data used, and we believe that for some large datasets, the fourstep algorithm will outperform the threestep.
+
+Next, we compare our package with the gglasso package, which performs regular group lasso. For this comparison we set $\alpha$ to be zero in our algorithm, so that it also performs regular group lasso. 
+
+\includegraphics[scale=0.5]{fourvsgglasso.png}
+
+We see that our package actually outperforms gglasso, even though the gglasso incorporates a similar strong rule, and is overall very close to our threestep algorithm. This gives evidence that the fourstep algorithm can outperform the threestep in at least some circumstances. So even without considering the added functionality of sparsegl to incorporate sparseness, our sparsegl algorithm seems to be an improvement on the gglasso package for performing group lasso.
+
+Finally, we look at the other, existing package that performs sparse group lasso.
+
+
+
+\includegraphics[scale=0.5]{fourvsSGL.png}
+
+Here we see that our fourstep algorithm is substantially faster than SGL in performing sparse group lasso. In fact, we needed to decrease the number of times that microbenchmark ran the two algorithms, since the default of 100 tests was too much for this computer, it did not finish the job in an hour.
+
+Recall the dataset we used for these comparisons, with $n=100$ and $p=200$. It is clear that SGL cannot be used for very large datasets, and thus the sparsegl package represents real progress.
+
 
 We also compare the actual output, in particular the beta matrix, to confirm that they are arriving at the same answers. For this comparison, the lambda path is about the same, but for the other packages (gglasso, SGL), the lambda path will in general be different, so some care must be taken in comparing the beta matrices.
 
+\section{Conclusion}
 
 
 \end{document}
