@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.14159265-2.6-1.40.18 (TeX Live 2017/Debian) (preloaded format=pdflatex 2020.9.18)  13 NOV 2020 13:28
+This is pdfTeX, Version 3.14159265-2.6-1.40.18 (TeX Live 2017/Debian) (preloaded format=pdflatex 2020.9.18)  17 NOV 2020 14:49
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -265,32 +265,50 @@ File: images/fitted_beta_weights.png Graphic file (type png)
 Package pdftex.def Info: images/fitted_beta_weights.png  used on input line 157
 .
 (pdftex.def)             Requested size: 312.79283pt x 208.15215pt.
- [4 <./images/fitted_beta_weights.png (PNG copy)>] [5] (./da_project.aux) ) 
+ [4 <./images/fitted_beta_weights.png (PNG copy)>]
+<images/threevsfour.png, id=35, 625.58719pt x 416.30531pt>
+File: images/threevsfour.png Graphic file (type png)
+<use images/threevsfour.png>
+Package pdftex.def Info: images/threevsfour.png  used on input line 172.
+(pdftex.def)             Requested size: 312.79283pt x 208.15215pt.
+<images/fourvsgglasso.png, id=36, 625.58719pt x 416.30531pt>
+File: images/fourvsgglasso.png Graphic file (type png)
+<use images/fourvsgglasso.png>
+Package pdftex.def Info: images/fourvsgglasso.png  used on input line 178.
+(pdftex.def)             Requested size: 312.79283pt x 208.15215pt.
+ [5 <./images/threevsfour.png>]
+<images/fourvsSGL.png, id=42, 625.58719pt x 416.30531pt>
+File: images/fourvsSGL.png Graphic file (type png)
+<use images/fourvsSGL.png>
+Package pdftex.def Info: images/fourvsSGL.png  used on input line 186.
+(pdftex.def)             Requested size: 312.79283pt x 208.15215pt.
+ [6 <./images/fourvsgglasso.png> <./images/fourvsSGL.png>]
+(./da_project.aux) ) 
 Here is how much of TeX's memory you used:
- 3977 strings out of 492982
- 55398 string characters out of 6134896
+ 3992 strings out of 492982
+ 55764 string characters out of 6134896
  164049 words of memory out of 5000000
- 7509 multiletter control sequences out of 15000+600000
+ 7521 multiletter control sequences out of 15000+600000
  8508 words of font info for 30 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
  41i,6n,42p,725b,1853s stack positions out of 5000i,500n,10000p,200000b,80000s
-</us
-r/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmbsy10.pfb></usr/sha
-re/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx10.pfb></usr/share/tex
-live/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx12.pfb></usr/share/texlive/t
-exmf-dist/fonts/type1/public/amsfonts/cm/cmex10.pfb></usr/share/texlive/texmf-d
-ist/fonts/type1/public/amsfonts/cm/cmmi10.pfb></usr/share/texlive/texmf-dist/fo
-nts/type1/public/amsfonts/cm/cmmi7.pfb></usr/share/texlive/texmf-dist/fonts/typ
-e1/public/amsfonts/cm/cmmib10.pfb></usr/share/texlive/texmf-dist/fonts/type1/pu
-blic/amsfonts/cm/cmr10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/am
-sfonts/cm/cmr12.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/
-cm/cmr17.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr7
-.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb><
-/usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy7.pfb>
-Output written on da_project.pdf (7 pages, 226080 bytes).
+</usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/
+cm/cmbsy10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cm
+bx10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx12.p
+fb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmex10.pfb></u
+sr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb></usr/sha
+re/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi7.pfb></usr/share/texl
+ive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmib10.pfb></usr/share/texlive/t
+exmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb></usr/share/texlive/texmf-di
+st/fonts/type1/public/amsfonts/cm/cmr12.pfb></usr/share/texlive/texmf-dist/font
+s/type1/public/amsfonts/cm/cmr17.pfb></usr/share/texlive/texmf-dist/fonts/type1
+/public/amsfonts/cm/cmr7.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/
+amsfonts/cm/cmsy10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfon
+ts/cm/cmsy7.pfb>
+Output written on da_project.pdf (8 pages, 250770 bytes).
 PDF statistics:
- 81 PDF objects out of 1000 (max. 8388607)
- 57 compressed objects within 1 object stream
+ 90 PDF objects out of 1000 (max. 8388607)
+ 59 compressed objects within 1 object stream
  0 named destinations out of 1000 (max. 500000)
- 6 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 21 words of extra memory for PDF output out of 10000 (max. 10000000)
 
