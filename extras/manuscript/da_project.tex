@@ -3,9 +3,13 @@
 \usepackage{graphicx}
 \usepackage{amsmath,amsfonts,amssymb}
 \graphicspath{ {images/} }
-%\usepackage[numbers, square, sort]{natbib}
+\usepackage[numbers, square, sort]{natbib}
 \usepackage[left=1in, top=1in, right=1in, bottom=1in, nohead]{geometry}
+\usepackage{hyperref}
 
+\usepackage[toc,page]{appendix}
+\hypersetup{colorlinks=true, linkcolor=red, citecolor=blue, urlcolor=cyan}
+\newcommand*{\Appendixautorefname}{appendix}
 
 \usepackage{xcolor}
 \newcommand{\djm}[1]{\textcolor{red}{(DJM: #1)}}
@@ -26,6 +30,7 @@
     \end{abstract}
 
 \section{Introduction}
+\label{Sec:intro}
 The lasso is ``a regression analysis method that performs both variable selection and regularization'' which uses an $l1$ penalty \djm{cite} to select a subset of predictors to be nonzero. It is of the form \djm{What is ``it''? Note use of the norm macro below.}
 \[
 \min_{\beta} \norm{y-X\beta}_2^2 + \lambda \norm{\beta}_1.
@@ -48,6 +53,7 @@ There are already two other existing \texttt{R} packages that perform group lass
 In section 2, we describe the algorithm in detail, paying particular attention to the strong rule. In section 3, we show how to use the package, running through an example with simulated data. In section 4, we compare our package to the other existing sgl package, and also compare the two variants of our algorithm with each other.
 
 \section{Methodology}
+\label{Sec:meth}
 
 \subsection{Overview of the algorithm}
 
@@ -58,11 +64,12 @@ There is no closed-form solution to the optimization problem \djm{in equation \e
 where $H = tI$ and $t$ is the largest eigenvalue of the Hessian \djm{probably write this out: Hessian is 2 derivatives of $\ell$}. This reduces computation significantly, as the $t$ factors out and removes the need for matrix multiplication.
 
 We take the original minimization equation and replace the loss with the above \djm{Huh?}. This \djm{what's this?} can be solved, with the resulting update step that $\beta^{(k)}$ is replaced by \djm{need to display what the GD process looks like}
-\[
-\left(1-\frac{t(1-\alpha)\lambda}{||S(\beta^{(k)}-t\nabla \ell(r_{-k)},\beta^{(k)}),\ t\alpha\lambda)||_2}\right)_+ S(\beta^{(k)}-t\nabla \ell(r_{(-k)},\beta^{(k)}),t\alpha\lambda)
-\]
+\begin{equation}
+\beta^{(k)} \leftarrow\left(1-\frac{t(1-\alpha)\lambda}{||S(\beta^{(k)}-t\nabla \ell(r_{-k)},\beta^{(k)}),\ t\alpha\lambda)||_2}\right)_+ S(\beta^{(k)}-t\nabla \ell(r_{(-k)},\beta^{(k)}),t\alpha\lambda)
+\label{eq:updateStep}
+\end{equation}
 
-where  $S$ is the coordinate-wise soft-threshold operator $(S(a,b))_j = \textrm{sign}(a_j)(|a_j|-b)_+$. Note that in updating $\beta^{(k)}$ it is possible for the whole group to be set to zero (made inactive) because of the threshold operator $()_+$ in the first part of the expression, and/or for individual components of $\beta^{(k)}$ to be zeroed out from the coordinate-wise threshold $S()$. So this algorithm setup performs variable selection at both the group and individual level.
+where  $S$ is the coordinate-wise soft-threshold operator $(S(a,b))_j = \textrm{sign}(a_j)(|a_j|-b)_+$. \emph{For ease of notation, denote the right side of \autoref{eq:updateStep} by $\Gamma (\beta^{(k)})$} Note that in updating $\beta^{(k)}$ it is possible for the whole group to be set to zero (made inactive) because of the threshold operator $()_+$ in the first part of the expression, and/or for individual components of $\beta^{(k)}$ to be zeroed out from the coordinate-wise threshold $S()$. So this algorithm setup performs variable selection at both the group and individual level.
 
 Because the optimization problem is convex, it can be shown that this type of descent algorithm is guaranteed to converge to the optimal solution. That is, it does not get `stuck' at any inflection points. Therefore, if that was all the algorithm did, there would be no need to check the KKT conditions for optimality. 
 
@@ -100,33 +107,23 @@ which is precisely the KKT stationarity condition at $\lambda_k$. Thus, if the s
 
 \subsection{The three-step and four-step algorithm}
 
-\djm{Let's have some displayed algorithms here. I'm showing an example}
 
 \begin{algorithm}
-  \caption{Kalman filter: estimate $x_i$ conditional on
-    $\{y_j\}_{j=1}^i$, for all $i=1,\ldots,n$ and calculate the log likelihood
-    for $\theta$\label{alg:kalman}}
+  \caption{Three-step Algorithm\label{alg:threeStep}}
   \begin{algorithmic}
-    \STATE {\bf Input:} $Y$, $x_0$, $P_0$, $d,\ T,\ c,\ Z,$ and $G$
-    \STATE $\ell(\theta) \leftarrow 0$ \COMMENT{Initialize the log-likelihood}
-    \FOR{$i=1$ to  $n$}
-    \STATE $\begin{aligned} x_{i}
-      &\leftarrow d + T x_{i-1|i-1}, & P_i &\leftarrow Q + T P_{i-1|i-1}
-      T^\top\end{aligned}$ \COMMENT{Predict current state}
-    \STATE $\begin{aligned}\widetilde{y}_i
-      &\leftarrow c + Z  x_i, & F_i &\leftarrow G + Z P_i
-      Z^\top\end{aligned}$ \COMMENT{Predict current observation}
-    \STATE $\begin{aligned}v_i&\leftarrow y_i-\widetilde{y}_i& K_i&
-      \leftarrow P_i Z^\top F^{-1}\end{aligned}$ \COMMENT{Forecast error and 
-    Kalman gain}
-    \STATE $\begin{aligned} x_{i|i}
-      &\leftarrow  x_i + K_i v_i, & P_{i|i} &\leftarrow P_i - P_iZ^\top
-      K_i\end{aligned}$ \COMMENT{Update}
-    \STATE $\ell(\theta) = \ell(\theta) -v_i^\top F^{-1}v_i - \log(|F_i|)$
-    \ENDFOR
-    \RETURN $\widetilde{Y}=\{\widetilde{y}_i\}_{i=1}^n,\  x=\{ x_i\}_{i=1}^n,\
-    \widetilde{X}=\{x_{i|i}\}_{i=1}^n,\ P=\{P_i\}_{i=1}^n,\
-    \widetilde{P}=\{P_{i|i}\}_{i=1}^n,\ \ell(\theta)$
+    \STATE {\bf Input:} $\Lambda = \{\lambda_0>\lambda_1> \dots$\},\ $\mathcal{E}$,\ $\mathcal{A}$
+    \STATE Set $\mathcal{E}=\mathcal{A}=\emptyset$ 
+    	\COMMENT{Step 0}
+    \STATE {\bf Step 1:} $\mathcal{E} \leftarrow  \mathcal{E}\cup \mathcal{S}(\lambda,\ \mathcal{E}^c)$
+    \WHILE{MAXDIF $> \epsilon$} 
+	\FOR{$k=1$ to $numgroups$}    
+    \STATE  $\beta^{(k)} \leftarrow \Gamma (\beta^{(k)})$
+    \STATE If $\beta^{(k)} \neq 0$ put $\beta^{(k)} \in \mathcal{A}$
+	\ENDFOR 
+    \STATE Run KKT check on $\mathcal{E}^c$, put violators in $\mathcal{E}$; if there are violators, go back to step 2, otherwise move on.
+		
+	\ENDWHILE   
+    \RETURN $\beta$ vector for associated $\lambda$
   \end{algorithmic}
 \end{algorithm}
 
@@ -147,6 +144,19 @@ Assume we have solved the problem for $\lambda_{k-1}$. We loop over $\mathcal{E}
 
 Otherwise, we run the full KKT check, the KKT check on the full complement $\mathcal{E}^c$. Again, if there are any violators, we put them in $\mathcal{E}$ and go back to step 1. If there are no violators, we are done, and we move on to the next $\lambda$ in the sequence.
 
+\begin{algorithm}
+  \caption{Four-step Algorithm\label{alg:fourStep}}
+  \begin{algorithmic}
+    \STATE {\bf Input:} $\{\lambda_0>\lambda_1> \dots$\}, $\mathcal{E}$
+    \STATE Set $\mathcal{E}$ to $\emptyset$ 
+    	\COMMENT{Step 0}
+    \STATE Loop over $\mathcal{E}$, perform update step until convergence
+    \STATE Compute $\mathcal{S}(\lambda,\ {E}^c)$
+    \STATE Run KKT check on $\mathcal{S}(\lambda,\ {E}^c)$, put violators in $\mathcal{E}$; if there are violators, go back to step 1, otherwise move on.
+    \STATE Run KKT check on the full set $\mathcal{E}^C$, put violators in $\mathcal{E}$ and return to step 1. If none, finish.	
+    \RETURN $\beta$ vector for associated $\lambda$
+  \end{algorithmic}
+\end{algorithm}
 
 
 \section{Example}
@@ -188,7 +198,13 @@ If we look now at the $B$ matrix, we see that, for a particular range of lambdas
 
 It is illustrative to look at a graph of the predictors against lambda, to see when the various predictors become active. For visualization reasons, we instead plot on the x-axis, not lambda but an equivalent measure, the relative group norm. This is equivalent to graphing against lambda, since as lambda \underline{decreases}, the group-norm (which is the sum of $L_2$ norms of all the groups in beta) of the fitted beta increases. This type of graph is produced by a built-in function of the sparsegl package. All predictors are plotted, and each are colored by group membership, which is supplied as input. See the figure below.
 
+
+\begin{figure}[tb!]
+\centering
 \includegraphics[scale=0.5]{fitted_beta_weights.png}
+\caption{Graph of predictor weights, colored by group, against the relative group norm. This shows how the groups and predictors enter and exit the model as a function of the $\lambda$ parameter.}
+\label{fig:colorWeights}
+\end{figure}
 
 We can see that there are four active groups (all other groups remain 0 for all values on the x-axis): black, green, red and blue. By comparing this graph with the true beta in the code above, we can get a measure of how the algorithm is performing across the various lambda values.
 
@@ -203,21 +219,37 @@ First we will compare the two algorithms within the sparsegl function, threestep
 
 For all comparisons, we use the R package microbenchmark, which compares two or more operations by performing them repeatedly (100 for our analysis) and collecting the times to perform each operation.
 
+\begin{figure}[tb!]
+\centering
 \includegraphics[scale=0.5]{threevsfour.png}
+\caption{A graph comparing the run-times of the threestep and fourstep algorithms. The fourstep algorithm is slightly faster on average.}
+\label{fig:threevsfour}
+\end{figure}
+
 
 We can see that there is not a big difference in the time it takes to perform the threestep algorithm vs the fourstep algorithm. This is possibly a result of the simulated data used, and we believe that for some large datasets, the fourstep algorithm will outperform the threestep.
 
 Next, we compare our package with the gglasso package, which performs regular group lasso. For this comparison we set $\alpha$ to be zero in our algorithm, so that it also performs regular group lasso. 
 
+\begin{figure}[tb!]
+\centering
 \includegraphics[scale=0.5]{fourvsgglasso.png}
+\caption{A graph comparing the run-times of the fourstep algorithm with the gglasso package. The fourstep algorithm is slightly faster.}
+\label{fig:fourvsgglasso}
+\end{figure}
 
 We see that our package actually outperforms gglasso, even though the gglasso incorporates a similar strong rule, and is overall very close to our threestep algorithm. This gives evidence that the fourstep algorithm can outperform the threestep in at least some circumstances. So even without considering the added functionality of sparsegl to incorporate sparseness, our sparsegl algorithm seems to be an improvement on the gglasso package for performing group lasso.
 
 Finally, we look at the other, existing package that performs sparse group lasso.
 
 
-
+\begin{figure}[tb!]
+\centering
 \includegraphics[scale=0.5]{fourvsSGL.png}
+\caption{A graph comparing the run-times of the fourstep algorithm with the SGL package. The fourstep algorithm is substantially faster than SGL in performing sparse group lasso.}
+\label{fig:fourvsSGL}
+\end{figure}
+
 
 Here we see that our fourstep algorithm is substantially faster than SGL in performing sparse group lasso. In fact, we needed to decrease the number of times that microbenchmark ran the two algorithms, since the default of 100 tests was too much for this computer, it did not finish the job in an hour.
 
@@ -228,5 +260,40 @@ We also compare the actual output, in particular the beta matrix, to confirm tha
 
 \section{Conclusion}
 
+
+Putting this here in case I screw up \citep{tibshirani2012strong}
+
+Then I want to put this \citep{yang2015fast} here.
+
+And finally I recall the work of \citep{simon2013sparse} for the farts.
+
+\begin{algorithm}
+  \caption{Three-step Algorithm\label{alg:kalman}}
+  \begin{algorithmic}
+    \STATE {\bf Input:} $\lambda_0,\ \lambda_1,\ \dots$, $\mathcal{E}$, $\mathcal{A}$
+    \STATE Set $\mathcal{E}$ and $\mathcal{A}$ to $\emptyset$ \COMMENT{Step 0}
+    \FOR{$i=1$ to  $n$}
+    \STATE $\begin{aligned} x_{i}
+      &\leftarrow d + T x_{i-1|i-1}, & P_i &\leftarrow Q + T P_{i-1|i-1}
+      T^\top\end{aligned}$ \COMMENT{Predict current state}
+    \STATE $\begin{aligned}\widetilde{y}_i
+      &\leftarrow c + Z  x_i, & F_i &\leftarrow G + Z P_i
+      Z^\top\end{aligned}$ \COMMENT{Predict current observation}
+    \STATE $\begin{aligned}v_i&\leftarrow y_i-\widetilde{y}_i& K_i&
+      \leftarrow P_i Z^\top F^{-1}\end{aligned}$ \COMMENT{Forecast error and 
+    Kalman gain}
+    \STATE $\begin{aligned} x_{i|i}
+      &\leftarrow  x_i + K_i v_i, & P_{i|i} &\leftarrow P_i - P_iZ^\top
+      K_i\end{aligned}$ \COMMENT{Update}
+    \STATE $\ell(\theta) = \ell(\theta) -v_i^\top F^{-1}v_i - \log(|F_i|)$
+    \ENDFOR
+    \RETURN $\widetilde{Y}=\{\widetilde{y}_i\}_{i=1}^n,\  x=\{ x_i\}_{i=1}^n,\
+    \widetilde{X}=\{x_{i|i}\}_{i=1}^n,\ P=\{P_i\}_{i=1}^n,\
+    \widetilde{P}=\{P_{i|i}\}_{i=1}^n,\ \ell(\theta)$
+  \end{algorithmic}
+\end{algorithm}
+
+\bibliographystyle{plainnat}
+\bibliography{refs.bib}
 
 \end{document}
