@@ -31,22 +31,22 @@
 
 \section{Introduction}
 \label{Sec:intro}
-The lasso is ``a regression analysis method that performs both variable selection and regularization'' which uses an $l1$ penalty \djm{cite} to select a subset of predictors to be nonzero. It is of the form \djm{What is ``it''? Note use of the norm macro below.}
+The lasso is ``a regression analysis method that performs both variable selection and regularization'' which uses an $l1$ penalty \citep{tibshirani1996regression} to select a subset of predictors to be nonzero. The minimization problem is of the form
 \[
 \min_{\beta} \norm{y-X\beta}_2^2 + \lambda \norm{\beta}_1.
 \]
-A variant of this, the group lasso \djm{cite} is appropriate when there is a naturally grouped structure for the predictors $\beta = (\beta^{(1)},\ \beta^{(2)},\ \dots, \ \beta^{(m)})$ \djm{these are coefficients, not predictors}; it performs regularization that has the effect of selecting \djm{I don't think ``selecting'' is the right word} for the groups of predictors rather than the predictors themselves. It is of the form 
+A variant of this, the group lasso \citep{yuan2006model} is appropriate when there is a naturally grouped structure for the coefficients $\beta = (\beta^{(1)},\ \beta^{(2)},\ \dots, \ \beta^{(m)})$ ; it performs regularization that has the effect of selecting for the groups of predictors rather than the predictors themselves. It is of the form 
 \[
 \min_{\beta}\frac{1}{2}||y-\sum_{l=1}^mX^{(l)}\beta^{(l)}||_2^2 + \lambda\sum_{l=1}^m\sqrt{p_l}||\beta^{(l)}||_2
 \]
-Finally, in a grouped-structure \djm{maybe ``group-structured''?} problem as above, it may be desirable to enforce sparsity, not only among the groups, but also within the groups. The sparse group lasso solves \djm{does} this \djm{by solving} with the following minimization problem
+Finally, in a group-structured problem as above, it may be desirable to enforce sparsity, not only among the groups, but also within the groups. The sparse group lasso \citep{simon2013sparse} does this by solving the following minimization problem
 \begin{equation}
-  \label{eq:1}
+  \label{eq:sparsegl}
 min_{\beta}\frac{1}{2}||y-\sum_{l=1}^mX^{(l)}\beta^{(l)}||_2^2 + (1-\alpha)\lambda\sum_{l=1}^m\sqrt{p_l}||\beta^{(l)}||_2+\alpha\lambda||\beta||_1
 \end{equation}
 Note the tuning parameter $\alpha$ which controls the relative emphasis of intra- vs inter- sparsity in the predictors.
 
-In this paper we consider solving the sparse group lasso for a whole range of parameters $(\lambda_1,\dots \lambda_n)$ rather than a single value, and a computational problem presents itself:  can we speed up the algorithm at a  given $\lambda_i$ by utilizing the solution at the previous $\lambda_{(i-1)}$? A heuristic solution to this, used in the present paper, is the Strong Rule \djm{cite}, which predicts which predictor (groups) will remain zero at the solution for $\lambda_i$ and throws them out. If a significant number of groups are thrown out before entering the algorithm, convergence time can iprove significantly.
+In this paper we consider solving the sparse group lasso for a whole range of parameters $(\lambda_1,\dots \lambda_n)$ rather than a single value, and a computational problem presents itself:  can we speed up the algorithm at a  given $\lambda_i$ by utilizing the solution at the previous $\lambda_{(i-1)}$? A heuristic solution to this, used in the present paper, is the Strong Rule \citep{tibshirani2012strong}, which predicts which predictor (groups) will remain zero at the solution for $\lambda_i$ and throws them out. If a significant number of groups are thrown out before entering the algorithm, convergence time can iprove significantly.
 
 There are already two other existing \texttt{R} packages that perform group lasso, gglasso and sgl. The advantage of our package over those two are as follows: the sgl package has sparsity, but does direct coordinate descent and does not have a heuristic like the strong rule, so it does not take advantage of such a computational speedup. The gglasso package, on the other hand, incorporates such a rule and is computationally fast, but does not incorporate within-group sparsity. Our contribution, then, is to provide a package that performs sparse group lasso, and is faster than existing algorithms. This algorithms for this package are written in Fortran, and are based on the algorithm from the gglasso package.
 
@@ -57,19 +57,24 @@ In section 2, we describe the algorithm in detail, paying particular attention t
 
 \subsection{Overview of the algorithm}
 
-There is no closed-form solution to the optimization problem \djm{in equation \eqref{eq:1}} above, so we need a numerical algorithm to find the optimal solution. The general framework for both of our algorithms is based on (groupwise) coordinate descent \djm{more of a majorized group coordinate descent, givenn the below. Also should cite sgl and the Yang paper}. That is, we loop over the groups and, for a given group, update only those variables while holding all other groups constant. First, we note that the loss $\ell$, being quadratic, can be dominated by the following \djm{do we actually need $\ell$ here? Why not just use quadratic loss?}:
-\[
+There is no closed-form solution to the optimization problem in equation \autoref{eq:sparsegl} above, so we need a numerical algorithm to find the optimal solution. The general framework for both of our algorithms is based on a majorized coordinate descent\citep{yang2015fast, simon2013sparse}---that is, we loop over the groups and, for a given group, update only those variables while holding all other groups constant. First, we note that the loss term $\ell=||y-\sum_{l=1}^mX^{(l)}\beta^{(l)}||_2^2$ is quadratic, and so is equal to its second-order Taylor series. Thus it can be dominated by the following
+\begin{equation}
 \forall \beta,\beta^*,\ \ell(\beta) \leq \ell(\beta^*)+(\beta - \beta^*)^T\nabla \ell(\beta^*)+\frac{1}{2}(\beta - \beta^*)^T H (\beta - \beta^*)
-\]
-where $H = tI$ and $t$ is the largest eigenvalue of the Hessian \djm{probably write this out: Hessian is 2 derivatives of $\ell$}. This reduces computation significantly, as the $t$ factors out and removes the need for matrix multiplication.
+\label{eq:dominate}
+\end{equation}
+where $H = tI$ and $t$ is the largest eigenvalue of the Hessian of $\ell$ (the Hessian of a map such as $\ell$ is the second total derivative). This reduces computation significantly, as the $t$ factors out and removes the need for matrix multiplication.
 
-We take the original minimization equation and replace the loss with the above \djm{Huh?}. This \djm{what's this?} can be solved, with the resulting update step that $\beta^{(k)}$ is replaced by \djm{need to display what the GD process looks like}
+We take the original minimization problem (\autoref{eq:sparsegl}) and replace the loss with the right-hand side of \autoref{eq:dominate}. Thus \autoref{eq:sparsegl} is now dominated by the following expression
+\begin{equation}
+\ell(\beta^*)+(\beta - \beta^*)^T\nabla \ell(\beta^*)+\frac{t}{2}\norm{\beta^*-\beta}_2^2+ (1-\alpha)\lambda\sum_{l=1}^m\sqrt{p_l}||\beta^{(l)}||_2+\alpha\lambda||\beta||_1,
+\end{equation}
+which can be solved. The resulting update step that $\beta^{(k)}$ is replaced by \djm{need to display what the GD process looks like}
 \begin{equation}
 \beta^{(k)} \leftarrow\left(1-\frac{t(1-\alpha)\lambda}{||S(\beta^{(k)}-t\nabla \ell(r_{-k)},\beta^{(k)}),\ t\alpha\lambda)||_2}\right)_+ S(\beta^{(k)}-t\nabla \ell(r_{(-k)},\beta^{(k)}),t\alpha\lambda)
 \label{eq:updateStep}
 \end{equation}
 
-where  $S$ is the coordinate-wise soft-threshold operator $(S(a,b))_j = \textrm{sign}(a_j)(|a_j|-b)_+$. \emph{For ease of notation, denote the right side of \autoref{eq:updateStep} by $\Gamma (\beta^{(k)})$} Note that in updating $\beta^{(k)}$ it is possible for the whole group to be set to zero (made inactive) because of the threshold operator $()_+$ in the first part of the expression, and/or for individual components of $\beta^{(k)}$ to be zeroed out from the coordinate-wise threshold $S()$. So this algorithm setup performs variable selection at both the group and individual level.
+where  $S$ is the coordinate-wise soft-threshold operator $(S(a,b))_j = \textrm{sign}(a_j)(|a_j|-b)_+$. \emph{For ease of notation, denote the right side of \autoref{eq:updateStep} by $\Gamma (\beta^{(k)})$}. Note that in updating $\beta^{(k)}$ it is possible for the whole group to be set to zero (made inactive) because of the threshold operator $()_+$ in the first part of the expression, and/or for individual components of $\beta^{(k)}$ to be zeroed out from the coordinate-wise threshold $S()$. So this algorithm setup performs variable selection at both the group and individual level.
 
 Because the optimization problem is convex, it can be shown that this type of descent algorithm is guaranteed to converge to the optimal solution. That is, it does not get `stuck' at any inflection points. Therefore, if that was all the algorithm did, there would be no need to check the KKT conditions for optimality. 
 
@@ -77,13 +82,13 @@ However, our algorithms both make use of a heuristic that predicts, before compu
 
 \subsection{Strong Rule}
 
-As mentioned above, the strong rule is a heuristic that is easy and fast to perform, throwing away large numbers of predictors before computation, but it is not guaranteed to be correct, so it becomes necessary to double-check the solution with the KKT check afterwards. 
+As mentioned above, the strong rule \citep{tibshirani2012strong} is a heuristic that is easy and fast to perform, throwing away large numbers of predictors before computation, but it is not guaranteed to be correct, so it becomes necessary to double-check the solution with the KKT check afterwards. 
 
-It is important to note first of all that the version of the strong rule used here, the sequential strong rule, makes critical use of the fact that we are solving for a sequence of $\lambda$ parameters---without loss of generality assume that the problem has already been solved for the previous $\lambda_{k-1}$.
+It is important to note first of all that the version of the strong rule used here, the sequential strong rule, makes critical use of the fact that we are solving for a sequence of $\lambda$ parameters. At each $\lambda_k$, we rely on the fact that we have solved the problem for the previous $\lambda_{k-1}$, and use this information to quickly discard many predictors. Without loss of generality, for the rest of this section assume that the problem has already been solved for the previous $\lambda_{k-1}$.
 
-The motivation for the strong rule comes from the KKT check, so we start with this. The KKT stationarity condition for this problem is 
+The motivation for the strong rule comes from the KKT check, so we start with this. The KKT stationarity condition \citep{karush2014minima} is essentially the first-derivative test from calculus, and for this problem is 
 \[
-||S(X^{(k)T}r_{(-k)}/n,\ \alpha\lambda)||_2 \leq (1-\alpha)\lambda
+||S(X^{(k)T}r_{(-k)}/n,\ \alpha\lambda)||_2 \leq (1-\alpha)\lambda.
 \]
 The left-hand side of this inequality is the norm of the (sub)gradient of the loss $l = l(r_{(-k)},\beta)$, where $r_{(-k)}= y - \sum_{\ell \neq k} X^{(l)}\beta^{(l)}$.
 Denote 
@@ -92,9 +97,10 @@ c_j = c_j(\lambda) = S(X^{(j)T}r_{(-j)}/n,\ \alpha\lambda),
 \]
 i.e., $c_j$ at a given $\lambda$ in the sequence is the subgradient with respect to the $j$-th group.
 The (sequential) strong rule checks if the following inequality holds, and discards the $j$-th group if so:
-\[
+\begin{equation}
 |c_j(\lambda_{k-1})| < (1-\alpha)(2\lambda_k - \lambda_{k-1})
-\]
+\label{eq:strongcond}
+\end{equation}
 The reasoning is as follows: consider $c_j(\lambda)$ as a function of lambda. The key point is that, if this function $c_j$ were $(1-\alpha)$-Lipschitz, by definition it would satisfy
 \[
 |c_j(\lambda) - c_j(\tilde{\lambda})|\leq (1-\alpha)|\lambda-\tilde{\lambda}|
@@ -128,7 +134,7 @@ which is precisely the KKT stationarity condition at $\lambda_k$. Thus, if the s
 \end{algorithm}
 
 
-There are two algorithms in our package that perform sparse group lasso: the three-step algorithm and the four-step algorithm. First we discuss the three-step.
+There are two algorithms in our package that perform sparse group lasso: the three-step algorithm and the four-step algorithm. First we discuss the three-step, \autoref{alg:threeStep}.
 
 In the initialization (step 0) of the algorithm, we set the lambda path (the decreasing set of $\lambda$ 's which comprise the parameter space), and start keeping track of two sets, $\mathcal{E} = \emptyset = \mathcal{A}$ , which are initially empty. Both of these sets grow as the algorithm is run; predictors get put into these groups if they pass certain checks, but never leave once they are put in.
 
@@ -138,7 +144,7 @@ In the second step (step 2), we loop over $\mathcal{E}$, performing the update s
 
 Finally, after we have converged (the update step for all groups is changing values by less than a small epsilon), we need to perform the KKT check to make sure that we didn't accidentally leave some active groups at 0. Again, if we were not using the strong rule check, this would be unneccessary. The only potential violators are in the complement of $\mathcal{E}$, so: run the KKT check on $\mathcal{E}^c$, throw any violators into $\mathcal{E}$ and go back to step 2. If there are no violators, we have found the solution at the given $\lambda$, so we save the values in $\mathcal{A}$, as well as the gradients, and move on to the next lambda.
 
-The four-step algorithm has a slight refinement over the three-step. It is as follows. First note that there is only one set to keep track of, the set $\mathcal{E}$. The setup is the same.
+The four-step algorithm, \autoref{alg:fourStep}, has a slight refinement over the three-step. It is as follows. First note that there is only one set to keep track of, the set $\mathcal{E}$. The setup is the same.
 
 Assume we have solved the problem for $\lambda_{k-1}$. We loop over $\mathcal{E}$ and update until convergence. The difference here is that we do not perform the strong check first. After we have run the update loop until convergence on our set, we then perform the strong rule on the complement, $\mathcal{E}^c$. For any groups that pass the strong rule, we run the kkt check; if there are any violators, put them in $\mathcal{E}$ and go back to step 1. 
 
@@ -235,7 +241,7 @@ Next, we compare our package with the gglasso package, which performs regular gr
 \centering
 \includegraphics[scale=0.5]{fourvsgglasso.png}
 \caption{A graph comparing the run-times of the fourstep algorithm with the gglasso package. The fourstep algorithm is slightly faster.}
-\label{fig:fourvsgglasso}
+\label{fig:1fourvsgglasso}
 \end{figure}
 
 We see that our package actually outperforms gglasso, even though the gglasso incorporates a similar strong rule, and is overall very close to our threestep algorithm. This gives evidence that the fourstep algorithm can outperform the threestep in at least some circumstances. So even without considering the added functionality of sparsegl to incorporate sparseness, our sparsegl algorithm seems to be an improvement on the gglasso package for performing group lasso.
@@ -265,7 +271,7 @@ Putting this here in case I screw up \citep{tibshirani2012strong}
 
 Then I want to put this \citep{yang2015fast} here.
 
-And finally I recall the work of \citep{simon2013sparse} for the farts.
+And finally I recall the work of \citep{simon2013sparse} for the people.
 
 \begin{algorithm}
   \caption{Three-step Algorithm\label{alg:kalman}}
