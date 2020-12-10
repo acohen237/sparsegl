@@ -5,12 +5,10 @@
   \providecommand{\doi}[1]{doi: #1}\else
   \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
 
-\bibitem[Karush(2014)]{karush2014minima}
-William Karush.
-\newblock Minima of functions of several variables with inequalities as side
-  conditions.
-\newblock In \emph{Traces and Emergence of Nonlinear Programming}, pages
-  217--245. Springer, 2014.
+\bibitem[Boyd et~al.(2004)Boyd, Boyd, and Vandenberghe]{boyd2004convex}
+Stephen Boyd, Stephen~P Boyd, and Lieven Vandenberghe.
+\newblock \emph{Convex optimization}.
+\newblock Cambridge university press, 2004.
 
 \bibitem[Simon et~al.(2013)Simon, Friedman, Hastie, and
   Tibshirani]{simon2013sparse}
