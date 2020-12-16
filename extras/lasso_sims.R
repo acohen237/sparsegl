@@ -78,8 +78,15 @@ four_vs_threealt <- microbenchmark(sparsegl(x = X, y = y, group = groups, pen = 
 
 four_vs_gglasso <- microbenchmark(sparsegl(x = X, y = y, group = groups, pen = "sparsegl", algorithm = "fourstep"), gglasso(x = X,y = y, group = groups,loss = "ls"))
 
-microbenchmark(sparsegl(x = X, y = y, group = groups, pen = "sparsegl", algorithm = "fourstep"), SGL(data=data, index = groups,nlam = 100), times = 20)
+four_vs_SGL <- microbenchmark(sparsegl(x = X, y = y, group = groups, pen = "sparsegl", algorithm = "fourstep"), SGL(data=data, index = groups,nlam = 100), times = 20)
 
+
+
+ggplot(data = three_vs_threealt, aes(x=expr, y=time/1e8))+ylab("Time (seconds)")+xlab("three_step vs three_step alt")+geom_boxplot()+theme_bw()
+
+ggplot(data = four_vs_gglasso, aes(x=expr, y=time/1e8))+ylab("Time (seconds)")+xlab("four_step vs gglasso")+geom_boxplot()+theme_bw()
+
+ggplot(data = four_vs_SGL, aes(x=expr, y=time/1e8))+ylab("Time (seconds)")+xlab("four_step vs SGL")+geom_boxplot()+theme_bw()
 
 # Code for generating plots
 group_norm <- function(x,grp) sum(by(x, grp, function(x) sqrt(sum(x^2))))

@@ -171,7 +171,7 @@ which is precisely the KKT stationarity condition at $\lambda_k$. Thus, if the s
   \begin{algorithmic}
     \STATE {\bf Input:} $\Lambda = \{\lambda_0>\lambda_1> \dots > \lambda_K$ \},\ $\mathcal{E}$,\ $\mathcal{A}$
     \STATE Set $\mathcal{E}=\mathcal{A}=\emptyset$; set $d=\epsilon+1$
-    	\COMMENT{Step 0}
+    	%\COMMENT{Step 0}
     \STATE {\bf Step 1:} $\mathcal{E} \leftarrow  \mathcal{E}\cup \mathcal{S}(\lambda_{k-1},\ \mathcal{E}^c)$
 	\STATE {\bf Step 2:}    
     \WHILE{$d > \epsilon$} 
@@ -190,7 +190,22 @@ which is precisely the KKT stationarity condition at $\lambda_k$. Thus, if the s
 \end{algorithm}
 
 
-There are two algorithms in our package that perform sparse group lasso: the three-step algorithm and the four-step algorithm. First we discuss the three-step, \autoref{alg:threeStep}.
+There are two algorithms in our package that perform sparse group lasso: the three-step algorithm and the four-step algorithm. Both algorithms use the majorized coordinate-descent update step, and mainly differ in how they use the strong rule and how they store the active and potentially active groups. Before discussing these in detail, we need some notation.
+
+First, let $\mathcal{S} = \mathcal{S}(\lambda,\ A)$ be a function which performs the strong rule check on the set of groups $A$ at lambda value $\lambda$, and returns the set $A^{\prime}$ of groups in $A$ that pass the strong rule check. For each individual group in the set $A$, it checks the inequality in \autoref{eq:strongcond}. Note the strong rule check at a given $\lambda_k$ involves both that lambda and the previous one in the sequence; this is suppressed in this notation, with the understanding that the lambda that is passed into $\mathcal{S}$ is the current lambda $\lambda_k$.
+
+Similarly, the function $KKT=KKT(\lambda, A)$ performs the KKT check described in the previous section, and returns the subset $A^{\prime}$ of groups that fail the KKT check. The idea for both of these functions is to keep track of which groups are potentially active (nonzero) for the given $\lambda$. 
+
+Note that both of these functions take in only a subset of the groups of coefficients, rather than being run on the whole set each time; this is to save time and reduce redundancy. It would not make sense to run a KKT check on those groups that are already known to be active (for the given $\lambda$), because the whole point is to figure out which groups are mistakenly put down as 'inactive'. Similarly for the strong rule check, it would be a waste of time to run that inequality on groups that are already known or suspected of being active, since the point of the strong rule check is to separate those suspected of being active from those that are not, and only updating the coefficient estimates for the suspected active groups.
+
+We need to keep track of the active and suspected active groups. First, let $\mathcal{E}$ be the set of groups that are suspected of being active at a given lambda; this is the subset of groups that we will perform the update step on, repeatedly until convergence. It is important to note that there is no mention of $\lambda$ for this set---this set is only increasing in membership, and gets passed on from one lambda to the next. In other words, once a group is suspected of being active and gets put in $\mathcal{E}$, it never leaves this set, and if group $l$ is put in $\mathcal{E}$ for $\lambda_{k-1}$, it is automatically included in this set when we start the algorithm for the next value, $\lambda_k$. 
+
+The set $\mathcal{A}$ is the set of groups that are actually active, i.e. nonzero, for a given $\lambda$. This set is also never-decreasing, so if a group becomes active for one lambda, it stays in that set for every subsequent lambda. This set is used in addition to $\mathcal{E}$ in the three-step algorithm, because we use a warm-start for $\beta^*$ every time we progress to the next $\lambda$, and we only want to keep track of the small set of nonzero coefficients for the warm start. This set is not used in the four-step algorithm.
+
+let $\mathcal{E}$ be the set of indices for the groups that are potentially active (nonzero). There are two ways in which groups get added to $\mathcal{E}$: either they pass the strong rule check
+
+
+First we discuss the three-step, \autoref{alg:threeStep}.
 
 In the initialization (step 0) of the algorithm, we set the lambda path (the decreasing set of $\lambda$ 's which comprise the parameter space), and start keeping track of two sets, $\mathcal{E} = \emptyset = \mathcal{A}$ , which are initially empty. Both of these sets grow as the algorithm is run; predictors get put into these groups if they pass certain checks, but never leave once they are put in.
 
@@ -207,7 +222,7 @@ The four-step algorithm, \autoref{alg:fourStep}, has a slight refinement over th
   \begin{algorithmic}
     \STATE {\bf Input:} $\Lambda = \{\lambda_0>\lambda_1> \dots > \lambda_K$\},\ $\mathcal{E}$
     \STATE Set $\mathcal{E}=\emptyset$; set $d=\epsilon+1$ 
-    	\COMMENT{Step 0}
+    	%\COMMENT{Step 0}
 	\STATE {\bf Step 1:}    
     \WHILE{$d > \epsilon$} 
 	\FOR{$l=1$ to $m$}    
