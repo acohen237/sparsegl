@@ -1,4 +1,4 @@
-\begin{thebibliography}{6}
+\begin{thebibliography}{7}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
@@ -30,6 +30,13 @@ Robert Tibshirani, Jacob Bien, Jerome Friedman, Trevor Hastie, Noah Simon,
 \newblock Strong rules for discarding predictors in lasso-type problems.
 \newblock \emph{Journal of the Royal Statistical Society: Series B (Statistical
   Methodology)}, 74\penalty0 (2):\penalty0 245--266, 2012.
+
+\bibitem[Tseng(2001)]{tseng2001convergence}
+Paul Tseng.
+\newblock Convergence of a block coordinate descent method for
+  nondifferentiable minimization.
+\newblock \emph{Journal of optimization theory and applications}, 109\penalty0
+  (3):\penalty0 475--494, 2001.
 
 \bibitem[Yang and Zou(2015)]{yang2015fast}
 Yi~Yang and Hui Zou.

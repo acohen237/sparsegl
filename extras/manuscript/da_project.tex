@@ -29,6 +29,10 @@
 		commentstyle=\color{DarkGreen}
 		}
 
+\newcommand{\pkg}[1]{{\normalfont\fontseries{b}\selectfont #1}}
+\let\proglang=\textsf
+\let\code=\texttt
+
 
 
 \title{Comparing Algorithms for the Sparse Group Lasso}
@@ -68,13 +72,13 @@ Note that the factors $\sqrt{p_l}$ have been suppressed--see the previous paragr
 
 The sparse group lasso, like the other two lassos, does not have a closed form solution and thus relies on computational algorithms, which may be very intensive for large datasets and/or many values of $\lambda$. The rest of this paper therefore concerns the mitigation of this issue, in particular the following question: if we are solving the sparse group lasso, not for a single value of the tuning parameter $\lambda$ but a whole parameter space---in this context, a range of values $(\lambda_1,\dots \lambda_s)$---then can we shorten the total computational time by making use of the already-computed solution at previous $\lambda$'s in the parameter space to speed up computation at a given $\lambda$?
 
-In this paper we make use of a heuristic called the Strong Rule \citep{tibshirani2012strong} to help solve this problem, with some success. The strong rule uses the solution at a previous $\lambda_{k-1}$ to predict which groups will remain inactive upon solution at the current $\lambda_k$, and discards those groups before entering into the algorithm. If a significant number of groups are thrown out before entering the algorithm, convergence time can improve significantly.
+In this paper we make use of a heuristic called the Strong Rule \citep{tibshirani2012strong} to help solve this problem, with some success. The strong rule uses the solution at the previous $\lambda_{k-1}$ to predict which groups will remain inactive upon solution at the current $\lambda_k$, and discards those groups before entering into the algorithm. If a significant number of groups are thrown out before entering the algorithm, convergence time can improve significantly.
 
-The \texttt{R} package we have create has two algorithms, both using the strong rule, but in slightly different ways: the three-step algorithm and the four-step algorithm. Although they perform similarly for the simulated data set used in later sections of this paper, it is suspected that they will each be useful for different scenarios, depending on the size of the data, size of the predictors, and the true underlying group structure. This is explored in the last section before the conclusion.
+The \texttt{R} package we have create has two algorithms, both using the strong rule, but in slightly different ways: the \textbf{three-step algorithm} and the \textbf{four-step algorithm}. Although they perform similarly for the simulated data set used in later sections of this paper, it is suspected that they will each be useful for different scenarios, depending on the size of the data, size of the predictors, and the true underlying group structure. This is explored in the last section before the conclusion.
 
 %In this paper we consider solving the sparse group lasso for a whole range of parameters $(\lambda_1,\dots \lambda_n)$ rather than a single value, and a computational problem presents itself:  can we speed up the algorithm at a  given $\lambda_i$ by utilizing the solution at the previous $\lambda_{(i-1)}$? A heuristic solution to this, used in the present paper, is the Strong Rule \citep{tibshirani2012strong}, which predicts which predictor (groups) will remain zero at the solution for $\lambda_i$ and throws them out. If a significant number of groups are thrown out before entering the algorithm, convergence time can iprove significantly.
 
-There are already two other existing \texttt{R} packages that perform group lasso, gglasso and sgl. The advantage of our package over those two are as follows: the sgl package has sparsity, but does direct coordinate descent and does not have a heuristic like the strong rule, so it does not take advantage of such a computational speedup. The gglasso package, on the other hand, incorporates such a rule and is computationally fast, but does not incorporate within-group sparsity. Our contribution, then, is to provide a package that performs sparse group lasso, and is faster than existing algorithms. This algorithms for this package are written in Fortran, and are based on the algorithm from the gglasso package.
+There are already two other existing \texttt{R} packages that perform group lasso, \pkg{gglasso} and \pkg{sgl}. The advantage of our package over those two are as follows: the sgl package has sparsity, but does direct coordinate descent and does not have a heuristic like the strong rule, so it does not take advantage of such a computational speedup. The gglasso package, on the other hand, incorporates such a rule and is computationally fast, but does not incorporate within-group sparsity. Our contribution, then, is to provide a package that performs sparse group lasso, and is faster than existing algorithms. This algorithms for this package are written in Fortran, and are based on the algorithm from the gglasso package.
 
 In section 2, we describe the algorithm in detail, paying particular attention to the strong rule. In section 3, we show how to use the package, running through an example with simulated data. In section 4, we compare our package to the other existing sgl packages, and also compare the two variants of our algorithm with each other.
 
@@ -83,40 +87,72 @@ In section 2, we describe the algorithm in detail, paying particular attention t
 
 \subsection{Overview of the algorithm}
 
-There is no closed-form solution to the optimization problem in \autoref{eq:sparsegl} above, so we need a numerical algorithm to find the optimal solution. It can be shown that the problem defined by \autoref{eq:sparsegl} is convex, so there is a unique optimal solution, and so a variety of methods may be used.
+There is no closed-form solution to the optimization problem in \autoref{eq:sparsegl} above, so we need a numerical algorithm to find the optimal solution. The problem defined by \autoref{eq:sparsegl} is convex, since the expression is a sum of convex functions and the feasable set is convex, so there is a unique optimal solution, and a variety of methods may be used.
 
-Our package has two different algorithms to accomplish this, which we refer to as the three-step and four-step algorithms. The general framework for both of our algorithms is based on a majorized coordinate descent algorithm (see \citep{yang2015fast, simon2013sparse}). What this mean is that we loop over the groups and, for a given group, update only those variables while holding all other groups constant. The term 'majorized' comes from the idea that, instead of using the exact equation to determine the step size and direction in every update step, we update according to a simpler expression than \autoref{eq:sparsegl} that majorizes, or bounds from above, the expression we want to solve for. This is explained in more detail in the next paragraph.
+Our package has two different algorithms to accomplish this, which we refer to as the \textbf{three-step} and \textbf{four-step} algorithms. The general framework for both of our algorithms is based on a block-wise coordinate descent algorithm (see \citep{yang2015fast, simon2013sparse}). What this mean is that we loop over the groups and, for a given group, update only those variables while holding all other groups constant. In particular, we will use a majorization-minimization coordinate descent scheme; the term 'majorization' comes from the idea that, instead of using the exact equation to determine the step size and direction in every update step, we update according to a simpler expression than \autoref{eq:sparsegl} that majorizes, or bounds from above, the expression we want to solve for. This is explained in more detail in the following paragraph.
 
-To begin with, consider the first term in \autoref{eq:sparsegl}, the quadratic loss $\frac{1}{2}\norm{y-\sum_{l=1}^mX^{(l)}\beta^{(l)}}_2^2$, by itself; we will denote this by $\ell$ for the rest of this section. Since this is a quadratic function in $\beta$, it is equal to its second order Taylor expansion about any point $\beta^*$ in the parameter space---indeed, this is the definition of a function being quadratic. We thus start with the following equality for any given $\beta^*$:  
+For the rest of this section, we will focus on a particular group $k$. We hold the coefficients for all other groups fixed, and find an appropriate update step for group $k$. We note here that, because the loss function in \autoref{eq:sparsegl} is differentiable and the penalty terms are convex and separable (i.e., they can be decomposed into a some of functions only involving a single group), a coordinate descent algorithm is guaranteed to converge to the global optimum \citep{tseng2001convergence}.
+
+To begin with, we will introduce some notation. Let 
+
+\[
+r_{(-k)} = y - \sum_{l \neq k} X^{(l)} \beta^{(l)}
+\]
+be the partial residual of $y$, where all the group fits besides that of group $k$ are subtracted from $y$. Since all groups besides group $k$ are held fixed, we don't need to consider the penalty terms corresponding to those fixed groups. So what we are really interested in minimizing is the following:
 
 \begin{equation}
-\forall \beta,\ \ell(\beta) = \ell(\beta^*)+(\beta - \beta^*)^T\nabla \ell(\beta^*)+\frac{1}{2}(\beta - \beta^*)^T H (\beta - \beta^*),
+	\label{eq:sparsegroupk}
+\frac{1}{2n} \norm{r_{(-k)}-X^{(k)}\beta^{(k)}}_2^2 + (1-\alpha)\lambda \norm{\beta^{(k)}}_2 + \alpha \lambda \norm{\beta^{(k)}}_1. 
+\end{equation}
+
+
+For ease of notation, we will suppress the superscript $(k)$ from $\beta^{(k)}$, with the understanding that we are really referring to only the $k$-th group of the coefficient vector. We will also define, using these terms, the unpenalized loss function
+
+\[
+\ell (r_{(-k)}, \beta) = \frac{1}{2n}\norm{r_{(-k)} - X^{(k)}\beta}_2^2, 
+\]
+so that our optimization problem for the $k$-th group becomes $\ell (r_{(-k)},\beta) + (1-\alpha)\lambda\norm{\beta}_2 + \alpha \lambda \norm{\beta}_1$, and we are interested in finding the optimal value, $\hat{\beta}$.
+
+The optimum is determined by the subgradient equation, which is similar to a first-derivative test for minima (being a convex problem, there is one extremum, the global minimum), except the $\norm{\cdot}_2$ and $\norm{\cdot}_1$ penalty terms are non-differentiable at $0$; in this case, the (sub)differential for each coordinate in $\beta$ (i.e., $\beta^{(k)}$) is not a single value, but a range of possible values. In this case, taking the (sub)gradient of the expression and setting equal to zero gives us the following condition that $\hat{\beta}$ needs to satisfy: 
+
+\begin{equation}
+  \label{eq:subgrad}
+\frac{1}{n}X^{(k)T}(r_{(-k)} - X^{(k)}\beta) = (1-\alpha)\lambda u + \alpha \lambda v,
+\end{equation}
+where $u$ is the subgradient of $\norm{\beta}_2$ and $v$ is the subgradient of $\norm{\beta}_1$. The first is defined to be $\frac{\beta}{\norm{\beta}_2}$ if $\beta$ is a nonzero vector, and is any value in the set $\{ u : \norm{u}_2 \leq 1 \}$ otherwise; the second, $v$, is defined coordinate-wise as $v_j = sign(\beta_j)$ if $v_j \neq 0$, and is any value $v_j \in \{v_j : |v_j| \leq 1$ otherwise.
+
+\
+
+At this point, it is possible to use \autoref{eq:subgrad} to derive an update step and develop a cyclical coordinate-wise algorithm, but it is too computationally expensive, involving repeated large-matrix multiplication (\citep{simon2013sparse}); instead we use the majorization-minimization idea discussed above.
+
+Since the unpenalized loss $\ell (r_{(-k)}, \beta)$ is a quadratic function in $\beta$, it is equal to its second order Taylor expansion about any point $\beta_0$ in the parameter space---indeed, this is the definition of a function being quadratic. We thus start with the following equality for any given $\beta_0$ (recall that $\beta_0 = \beta_0^{(k)}$):  
+
+\begin{equation}
+\forall \beta,\ \ell(\beta) = \ell(\beta_0)+(\beta - \beta_0)^T\nabla \ell(r_{(-k)}, \beta_0)+\frac{1}{2}(\beta - \beta_0)^T H (\beta - \beta_0),
 \label{eq:TaylorExp}
 \end{equation}
 
-where the gradient $\nabla (l)$ is the first total derivative of $\ell$ (evaluated at $\beta^*$) and $H$, the Hessian, is the second total derivative. Recall that $\nabla$ is the vector of first partial derivatives of $\ell$ with respect to each $\beta_i$ , and $H$ is a $p$x$p$ matrix of mixed partial derivatives of $\ell$. In this particular case, a short computation shows that the Hessian is simply written in terms of $X$: $H = X^TX$.
+where the gradient $\nabla \ell$ is the first total derivative of $\ell$ (evaluated at $\beta_0$) and $H$, the Hessian, is the second total derivative. Note that we have again suppressed notation, $\ell(\beta) = \ell(r_{(-k)},\beta)$, since $\beta = \beta^{(k)}$ is the only variable. Recall that $\nabla$ is the vector of first partial derivatives of $\ell$ with respect to each coordinate of $\beta$, evaluated at $\beta_0$, and $H$ is a $p$x$p$ matrix of mixed partial derivatives of $\ell$. In this particular case, a short computation shows that the Hessian is simply written in terms of $X$: $H = X^TX$.
 
-Already there is a problem, and an opportunity. The matrix $X$ is, for the problems we are interested in solving, very large, and so computing $X^TX$, storing it in memory, and inverting, is going to be an issue, especially since we will be doing update steps many times. What we can do, and will do, is replace this matrix with a much simpler one, $tI$, a diagonal matrix with the value of $t$ selected to be such that this dominates the Hessian (in the sense that $tI - H$ is positive definite). For our algorithm we choose the largest eigenvalue of the Hessian (ask Dan/think when not so tired) and use that for $t$. We get the following inequality:
+The matrix $X$ is, for the problems we are interested in solving, very large, and so computing $X^TX$, storing it in memory, and inverting, is going to be an issue, especially since we will be doing update steps many times. What we can do, and will do, is replace this matrix with a much simpler one, $tI$, a diagonal matrix with the value of $t$ selected to be such that this dominates the Hessian (in the sense that $tI - H$ is positive definite). For our algorithm we choose the largest eigenvalue of the Hessian and use that for $t$. We get the following inequality:
 
 
 
 \begin{equation}
-\forall \beta,\beta^*,\ \ell(\beta) \leq \ell(\beta^*)+(\beta - \beta^*)^T\nabla \ell(\beta^*)+\frac{t}{2}(\beta - \beta^*)^T  (\beta - \beta^*).
+\forall \beta,\beta_0,\ \ell(\beta) \leq \ell(\beta_0)+(\beta - \beta_0)^T\nabla \ell(\beta_0)+\frac{1}{2t}(\beta - \beta_0)^T  (\beta - \beta_0).
 \label{eq:dominate}
 \end{equation}
 
-We take the original minimization problem (\autoref{eq:sparsegl}) and replace the loss with the right-hand side of \autoref{eq:dominate}. Thus \autoref{eq:sparsegl} is now dominated by the following expression
+We take the original minimization problem (\autoref{eq:sparsegroupk}) and replace the loss with the right-hand side of \autoref{eq:dominate}. Thus \autoref{eq:sparsegroupk} is now dominated (majorized) by the following expression
 \begin{equation}
-\ell(\beta^*)+(\beta - \beta^*)^T\nabla \ell(\beta^*)+\frac{t}{2}\norm{\beta^*-\beta}_2^2+ (1-\alpha)\lambda\sum_{l=1}^m\norm{\beta^{(l)}}_2+\alpha\lambda\norm{\beta}_1,
+M(\beta) = \ell(\beta_0)+(\beta - \beta_0)^T\nabla \ell(\beta_0)+\frac{1}{2t}\norm{\beta_0-\beta}_2^2+ (1-\alpha)\lambda\norm{\beta}_2+\alpha\lambda\norm{\beta}_1,
 \end{equation}
-which can be solved. 
+which no longer involves the large matrix multiplication that using the original loss function would have confronted us with. 
+
+
 
 The general idea at this point is that we pick a starting point $\beta^*$ in the parameter space, find a much simpler function that dominates it, then minimize that function by setting the derivative to zero and solving for $\beta$. This becomes the new $\beta^*$, and we repeat the whole process. There is a complication, which is a blessing in disguise, in the fact that the last two factors are non-differentiable; however, we can still implement this update-step process by using sub-differentials.
 
-[Need to talk about sub-differentials.]
-
-
-[Need to go from talking about $\beta$ to talking about $\beta^{(l)}$]
 
 
 The resulting update step is that $\beta^{(l)}$ is replaced by
@@ -132,11 +168,11 @@ Because the optimization problem is convex, it can be shown that this type of de
 
 However, our algorithms both make use of the sequential strong rule, a heuristic that predicts, before computation, which groups will remain inactive, and throws them all out; this results in significant computational savings, but because of this pre-processing prediction, we will need to do a KKT check \citep{boyd2004convex} to make sure the prediction was accurate. This is described in the next section.
 
-\subsection{Strong Rule}
+\subsection{Strong Rule and KKT Check}
 
 As mentioned above, the strong rule \citep{tibshirani2012strong} is a heuristic that is easy and fast to perform, throwing away large numbers of predictors before computation, but it is not guaranteed to be correct, so it becomes necessary to double-check the solution with the KKT check afterwards. 
 
-It is important to note first of all that the version of the strong rule used here, the sequential strong rule, makes critical use of the fact that we are solving for a sequence of $\lambda$ parameters. At each $\lambda_k$, we rely on the fact that we have solved the problem for the previous $\lambda_{k-1}$, and use this information to quickly discard many predictors. Without loss of generality, for the rest of this section assume that the problem has already been solved for the previous $\lambda_{k-1}$.
+It is important to note first of all that the version of the strong rule used here, the sequential strong rule, makes critical use of the fact that we are solving for a sequence of $\lambda$ parameters. At each $\lambda_k$, we rely on the fact that we have solved the problem for the previous $\lambda_{k-1}$, and use this information to quickly discard many predictors. Without loss of generality, for the rest of this section assume that the problem has already been solved for $\lambda_{k-1}$.
 
 The motivation for the strong rule comes from the KKT check, so we start with this. The KKT stationarity condition \citep{boyd2004convex} is essentially the first-derivative test from calculus, and for this problem is 
 \[
@@ -157,16 +193,16 @@ The reasoning is as follows: consider $c_j(\lambda)$ as a function of lambda. Th
 \[
 |c_j(\lambda) - c_j(\tilde{\lambda})|\leq (1-\alpha)|\lambda-\tilde{\lambda}|
 \]
-Now suppose it were Lipschitz and also that $c_j(\lambda_{(k-1)}$ were known, i.e. we have solved the problem for the previous lambda in the sequence. Then, \underline{when the strong rule is satisfied}, we combine the two previous inequalities to get
+Now suppose it were Lipschitz and also that $c_j(\lambda_{(k-1)}$ were known, i.e. we have solved the problem for $\lambda_{k-1}$. Then, \underline{when the strong rule is satisfied}, we combine the two previous inequalities to get
 \[
 |c_j(\lambda_k)|\leq (1-\alpha)(|c_j(\lambda_k) - c_j(\lambda_{k-1})|+|c_j(\lambda_{k-1})|)<(1-\alpha)(\lambda_{k-1}-\lambda_k+2\lambda_{k}-\lambda_{k-1})
 \]
-which is precisely the KKT stationarity condition at $\lambda_k$. Thus, if the strong rule condition were satisfied at this group (and assuming the Lipschitz condition, which is not always true), it follows that $\beta_j$ is inactive for the current lambda, $\lambda_k$. Since we made the Lipschitz assumption, which essentially says that $c_j$ does not change "too fast" as a function of $\lambda$, we need to check after performing the algorithm on the other groups that this group is indeed inactive. In fact, as shown in the strong rules paper (), it is very often the case that the $c_j$'s are $(1-\alpha)$-Lipschitz.
+which is precisely the KKT stationarity condition at $\lambda_k$. Thus, if the strong rule condition were satisfied at this group (and assuming the Lipschitz condition, which is not always true), it follows that $\beta_j$ is inactive for the current value $\lambda_k$. Since we made the Lipschitz assumption, which essentially says that $c_j$ does not change "too fast" as a function of $\lambda$, we need to check after performing the algorithm on the other groups that this group is indeed inactive. In fact, as shown in the strong rules paper (), it is very often the case that the $c_j$'s are $(1-\alpha)$-Lipschitz.
 
-\subsection{The three-step and four-step algorithm}
+\subsection{The three-step and four-step algorithms}
 
 
-\begin{algorithm}
+\begin{algorithm}[tb!]
   \caption{Three-step Algorithm\label{alg:threeStep}}
   \begin{algorithmic}
     \STATE {\bf Input:} $\Lambda = \{\lambda_0>\lambda_1> \dots > \lambda_K$ \},\ $\mathcal{E}$,\ $\mathcal{A}$
@@ -192,28 +228,29 @@ which is precisely the KKT stationarity condition at $\lambda_k$. Thus, if the s
 
 There are two algorithms in our package that perform sparse group lasso: the three-step algorithm and the four-step algorithm. Both algorithms use the majorized coordinate-descent update step, and mainly differ in how they use the strong rule and how they store the active and potentially active groups. Before discussing these in detail, we need some notation.
 
-First, let $\mathcal{S} = \mathcal{S}(\lambda,\ A)$ be a function which performs the strong rule check on the set of groups $A$ at lambda value $\lambda$, and returns the set $A^{\prime}$ of groups in $A$ that pass the strong rule check. For each individual group in the set $A$, it checks the inequality in \autoref{eq:strongcond}. Note the strong rule check at a given $\lambda_k$ involves both that lambda and the previous one in the sequence; this is suppressed in this notation, with the understanding that the lambda that is passed into $\mathcal{S}$ is the current lambda $\lambda_k$.
+First, let $\mathcal{S}_{\lambda}(A)$ be a function which performs the strong rule check on a set of groups $A$ at $\lambda$, and returns the set $A^{\prime}$ of groups in $A$ that pass the strong rule check. For each individual group in the set $A$, it checks the inequality in \autoref{eq:strongcond} (the sequential strong rule). Recall that the strong rule check at a given $\lambda_k$ actually involves both $\lambda_{k}$ and $\lambda_{k-1}$; this is suppressed in this notation, with this understanding.
 
-Similarly, the function $KKT=KKT(\lambda, A)$ performs the KKT check described in the previous section, and returns the subset $A^{\prime}$ of groups that fail the KKT check. The idea for both of these functions is to keep track of which groups are potentially active (nonzero) for the given $\lambda$. 
+Similarly, the function $\textrm{KKT}_{\lambda} (A)$ performs the KKT check described in the previous section, and returns the subset $A^{\prime}$ of groups that fail the KKT check. The idea for both of these functions is to keep track of which groups are potentially active (nonzero) for the given $\lambda$. 
 
-Note that both of these functions take in only a subset of the groups of coefficients, rather than being run on the whole set each time; this is to save time and reduce redundancy. It would not make sense to run a KKT check on those groups that are already known to be active (for the given $\lambda$), because the whole point is to figure out which groups are mistakenly put down as 'inactive'. Similarly for the strong rule check, it would be a waste of time to run that inequality on groups that are already known or suspected of being active, since the point of the strong rule check is to separate those suspected of being active from those that are not, and only updating the coefficient estimates for the suspected active groups.
+Both of these functions take in only a subset of the groups of coefficients, rather than being run on the whole set each time; this is to save time and reduce redundancy. It would not make sense to run a KKT check on those groups that are already known to be active (for the given $\lambda$), because the whole point is to figure out which groups are mistakenly put down as 'inactive'. Similarly for the strong rule check, it would be a waste of time to run that inequality on groups that are already known or suspected of being active, since the point of the strong rule check is to separate those suspected of being active from those that are not, and only updating the coefficient estimates for the suspected active groups.
 
-We need to keep track of the active and suspected active groups. First, let $\mathcal{E}$ be the set of groups that are suspected of being active at a given lambda; this is the subset of groups that we will perform the update step on, repeatedly until convergence. It is important to note that there is no mention of $\lambda$ for this set---this set is only increasing in membership, and gets passed on from one lambda to the next. In other words, once a group is suspected of being active and gets put in $\mathcal{E}$, it never leaves this set, and if group $l$ is put in $\mathcal{E}$ for $\lambda_{k-1}$, it is automatically included in this set when we start the algorithm for the next value, $\lambda_k$. 
+Thus we need to keep track of the active and suspected active groups. First, let $\mathcal{E}$ be the set of groups that are suspected of being active at a given $\lambda$; this is the subset of groups that we will perform the update step on, repeatedly until convergence. It is important to note that there is no mention of $\lambda$ for this set---this set is only increasing in membership, and gets passed on from one $\lambda$ to the next. In other words, once a group is suspected of being active and gets put in $\mathcal{E}$, it never leaves this set, and if group $l$ is put in $\mathcal{E}$ for $\lambda_{k-1}$, it is automatically included in this set when we start the algorithm for the next value, $\lambda_k$. 
 
-The set $\mathcal{A}$ is the set of groups that are actually active, i.e. nonzero, for a given $\lambda$. This set is also never-decreasing, so if a group becomes active for one lambda, it stays in that set for every subsequent lambda. This set is used in addition to $\mathcal{E}$ in the three-step algorithm, because we use a warm-start for $\beta^*$ every time we progress to the next $\lambda$, and we only want to keep track of the small set of nonzero coefficients for the warm start. This set is not used in the four-step algorithm.
+The set $\mathcal{A}$ is the set of groups that are actually active, i.e. nonzero, for a given $\lambda$. This set is also never-decreasing, so if a group becomes active for $\lambda_k$, it stays in that set for every subsequent lambda. This set is used in addition to $\mathcal{E}$ in the three-step algorithm, because we use a warm-start for $\beta^*$ every time we progress to the next $\lambda$, and we only want to keep track of the small set of nonzero coefficients for the warm start. This set is not used in the four-step algorithm.
 
-let $\mathcal{E}$ be the set of indices for the groups that are potentially active (nonzero). There are two ways in which groups get added to $\mathcal{E}$: either they pass the strong rule check
+Next, let $\mathcal{E}$ be the set of indices for the groups that are potentially active (nonzero) at $\lambda_k$. There are two ways in which groups get added to $\mathcal{E}$: if a group passes the strong rule check at any point it gets added, and if a group fails the KKT check at the end of convergence, it gets added. $\mathcal{E}$ is the main set that we keep track of, and is used in both algorithms; this is the set of groups that we actually perform the update step on. Similarly to $\mathcal{A}$, this set is ever-increasing--once a group gets added to $\mathcal{E}$, it remains there from then on, for all subsequent $\lambda$. For both $\mathcal{E}$ and $\mathcal{A}$, it is possible that a group is active for $\lambda_{k}$ but is inactive for a subsequent $\lambda$, but this is rare, and since the set of active groups is usually very small (for any $\lambda$), it does not pose a problem to pass the sets over from $\lambda_{k-1}$ to $\lambda_k$.
 
+\
 
-First we discuss the three-step, \autoref{alg:threeStep}.
+First we discuss the three-step algorithm, \autoref{alg:threeStep}. In the initialization (step 0) of the algorithm, we set the lambda path (the decreasing set of $\lambda$ 's which comprise the parameter space), and start keeping track of two sets, $\mathcal{E} = \emptyset = \mathcal{A}$ , which are initially empty. Both of these sets grow as the algorithm is run; predictors get put into these groups if they pass certain checks, but never leave once they are put in.
 
-In the initialization (step 0) of the algorithm, we set the lambda path (the decreasing set of $\lambda$ 's which comprise the parameter space), and start keeping track of two sets, $\mathcal{E} = \emptyset = \mathcal{A}$ , which are initially empty. Both of these sets grow as the algorithm is run; predictors get put into these groups if they pass certain checks, but never leave once they are put in.
+Without loss of generality assume that we have run the algorithm for a few lambdas, and are at $\lambda = \lambda_{k}$. The first step (step 1) of the algorithm is to run the strong rule check on all predictor groups in $\mathcal{E}^c$, and every group that passes the strong rule (which is computed using the gradient at the previous lambda) gets put in the set $\mathcal{E}$. So, as discussed above, $\mathcal{E}$ is essentially keeping track of every predictor that has ever passed the strong rule check--these are candidates for active groups.
 
-Without loss of generality assume that we have run the algorithm for a few lambdas, and are at $\lambda = \lambda_{k}$. The first step (step 1) of the algorithm is to run the strong rule check on all predictor groups in $\mathcal{E}^c$, and every group that passes the strong rule (which is computed using the gradient at the previous lambda) gets put in the set $\mathcal{E}$. So $\mathcal{E}$ is essentially keeping track of every predictor that has ever passed the strong rule check--these are candidates for active groups.
+In the second step (step 2), we loop over $\mathcal{E}$, performing the update step until convergence. Again, this is a type of coordinate descent, but we are saving a lot of time by keeping all groups in $\mathcal{E}^c$ zero and only updating on those suspected of being active. Now, although $\mathcal{E}$ is keeping track of the 'strong set', any time a group actually becomes active (i.e. is updated to be nonzero), it gets put in $\mathcal{A}$, the 'active' set. This is because while we save the indices of the potentially-active groups, we only save the values of the actually active groups, to use as a warm start when moving from $\lambda_{k-1}$ to $\lambda_k$.
 
-In the second step (step 2), we loop over $\mathcal{E}$, performing the update step until convergence. Again, this is a type of coordinate descent, but we are saving a lot of time by keeping all groups in $\mathcal{E}^c$ zero and only updating on those suspected of being active. Now, although $\mathcal{E}$ is keeping track of the 'strong set', any time a group actually becomes active (i.e. is updated to be nonzero), it gets put in $\mathcal{A}$, the 'active' set. This is because while we save the indices of the potentially-active groups, we only save the values of the actually active groups.
+Finally, after we have converged (the update step for all groups is changing values by less than a small, pre-determined $\epsilon$), we need to perform the KKT check to make sure that we didn't accidentally leave some active groups at 0. Again, if we were not using the strong rule check, this would be unneccessary. The only potential violators are in the complement of $\mathcal{E}$, so: run the KKT check on $\mathcal{E}^c$, throw any violators into $\mathcal{E}$ and go back to step 2. If there are no violators, we have found the solution at the given $\lambda_k$, so we save the values in $\mathcal{A}$, as well as the gradients, and move on to $\lambda_{k+1}$.
 
-Finally, after we have converged (the update step for all groups is changing values by less than a small epsilon), we need to perform the KKT check to make sure that we didn't accidentally leave some active groups at 0. Again, if we were not using the strong rule check, this would be unneccessary. The only potential violators are in the complement of $\mathcal{E}$, so: run the KKT check on $\mathcal{E}^c$, throw any violators into $\mathcal{E}$ and go back to step 2. If there are no violators, we have found the solution at the given $\lambda$, so we save the values in $\mathcal{A}$, as well as the gradients, and move on to the next lambda.
+\
 
 The four-step algorithm, \autoref{alg:fourStep}, has a slight refinement over the three-step. It is as follows. First note that there is only one set to keep track of, the set $\mathcal{E}$. The setup is the same.
 
@@ -242,9 +279,9 @@ The four-step algorithm, \autoref{alg:fourStep}, has a slight refinement over th
 
 
 
-Assume we have solved the problem for $\lambda_{k-1}$. We loop over $\mathcal{E}$ and update until convergence. The difference here is that we do not perform the strong check first. After we have run the update loop until convergence on our set, we then perform the strong rule on the complement, $\mathcal{E}^c$. For any groups that pass the strong rule, we run the kkt check; if there are any violators, put them in $\mathcal{E}$ and go back to step 1. 
+Assume we have solved the problem for $\lambda_{k-1}$. We loop over $\mathcal{E}$, which was passed over from $\lambda_{k-1}$, and update until convergence. The difference here is that we do not perform the strong check first. After we have run the update loop until convergence on our set, we then perform the strong rule on the complement, $\mathcal{E}^c$. For any groups that pass the strong rule, we run the kkt check; if there are any violators, put them in $\mathcal{E}$ and go back to step 1. 
 
-Otherwise, we run the full KKT check, the KKT check on the full complement $\mathcal{E}^c$. Again, if there are any violators, we put them in $\mathcal{E}$ and go back to step 1. If there are no violators, we are done, and we move on to the next $\lambda$ in the sequence.
+Otherwise, we run the KKT check on the full complement $\mathcal{E}^c$. Again, if there are any violators, we put them in $\mathcal{E}$ and go back to step 1. If there are no violators, we are done, and we move on to the next $\lambda$ in the sequence.
 
 %\begin{algorithm}
 %  \caption{Four-step Algorithm\label{alg:fourStept}}
@@ -304,7 +341,7 @@ It is illustrative to look at a graph of the predictors against lambda, to see w
 \begin{figure}[tb!]
 \centering
 \includegraphics[scale=0.5]{fitted_beta_weights.png}
-\caption{Graph of predictor weights, colored by group, against the relative group norm. This shows how the groups and predictors enter and exit the model as a function of the $\lambda$ parameter.}
+ of predictor weights, colored by group, against the relative group norm. This shows how the groups and predictors enter and exit the model as a function of the $\lambda$ parameter.
 \label{fig:colorWeights}
 \end{figure}
 
