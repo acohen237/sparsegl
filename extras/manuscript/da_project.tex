@@ -70,9 +70,9 @@ Finally, in a group-structured problem as above, it may be desirable to enforce 
 \end{equation}
 This equation is very similar to that of the group lasso, and in fact one sees that the only difference is that it adds a second regularization term, the overall $l1$ norm of the full $\beta$ vector, which we first saw in the original lasso formulation.  There is now a second tuning parameter $\alpha$, which controls the relative emphasis of intra- vs inter- sparsity in the predictors.
 
-The sparse group lasso, like the other two lassos, does not have a closed form solution and thus relies on computational algorithms, which may be very intensive for large datasets and/or many values of $\lambda$. The rest of this paper therefore concerns the mitigation of this issue, in particular the following question: if we are solving the sparse group lasso, not for a single value of the tuning parameter $\lambda$ but a whole parameter space---in this context, a range of values $(\lambda_1,\dots \lambda_s)$---then can we shorten the total computational time by making use of the already-computed solution at previous $\lambda$'s in the parameter space to speed up computation at a given $\lambda$?
+The sparse group lasso, like the other two lassos, does not have a closed form solution and thus relies on computational algorithms, which may be very intensive for large datasets and/or many values of $\lambda$. The rest of this paper therefore concerns the mitigation of this issue, in particular the following question: if we are solving the sparse group lasso, not for a single value of the tuning parameter $\lambda$ but a whole parameter space---in this context, a range of values $(\lambda_1,\dots \lambda_S)$---then can we shorten the total computational time by making use of the already-computed solution at previous $\lambda$'s in the parameter space to speed up computation at a given $\lambda$?
 
-In this paper we make use of a heuristic called the Strong Rule \citep{tibshirani2012strong} to help solve this problem, with some success. The strong rule uses the solution at the previous $\lambda_{k-1}$ to predict which groups will remain inactive upon solution at the current $\lambda_k$, and discards those groups before entering into the algorithm. If a significant number of groups are thrown out before entering the algorithm, convergence time can improve significantly.
+In this paper we make use of a heuristic called the Strong Rule \citep{tibshirani2012strong} to help solve this problem, with some success. The strong rule uses the solution at the previous $\lambda_{s-1}$ to predict which groups will remain inactive upon solution at the current $\lambda_s$, and discards those groups before entering into the algorithm. If a significant number of groups are thrown out before entering the algorithm, convergence time can improve significantly.
 
 The \texttt{R} package we have create has two algorithms, both using the strong rule, but in slightly different ways: the \textbf{three-step algorithm} and the \textbf{four-step algorithm}. Although they perform similarly for the simulated data set used in later sections of this paper, it is suspected that they will each be useful for different scenarios, depending on the size of the data, size of the predictors, and the true underlying group structure. This is explored in the last section before the conclusion.
 
@@ -106,8 +106,6 @@ be the partial residual of $y$, where all the group fits besides that of group $
 	\label{eq:sparsegroupk}
 \frac{1}{2n} \norm{r_{(-k)}-X^{(k)}\beta^{(k)}}_2^2 + (1-\alpha)\lambda \norm{\beta^{(k)}}_2 + \alpha \lambda \norm{\beta^{(k)}}_1. 
 \end{equation}
-
-
 For ease of notation, we will suppress the superscript $(k)$ from $\beta^{(k)}$, with the understanding that we are really referring to only the $k$-th group of the coefficient vector. We will also define, using these terms, the unpenalized loss function
 
 \[
@@ -115,7 +113,7 @@ For ease of notation, we will suppress the superscript $(k)$ from $\beta^{(k)}$,
 \]
 so that our optimization problem for the $k$-th group becomes $\ell (r_{(-k)},\beta) + (1-\alpha)\lambda\norm{\beta}_2 + \alpha \lambda \norm{\beta}_1$, and we are interested in finding an optimal value, $\hat{\beta}$.
 
-Any global minimum is determined by the subgradient equation, which is similar to a first-derivative test for minima, except the $\norm{\cdot}_2$ and $\norm{\cdot}_1$ penalty terms are non-differentiable at $0$; in this case, the (sub)differential for each coordinate in $\beta$ (i.e., $\beta^{(k)}$) is not a single value, but a range of possible values. In this case, taking the subdifferential of the expression above (\autoref{eq:sparsegroupk}) and setting equal to zero gives us the following condition that $\hat{\beta}$ needs to satisfy: 
+Any global minimum is determined by the subgradient equation, which is similar to a first-derivative test for minima, except the $\norm{\cdot}_2$ and $\norm{\cdot}_1$ penalty terms are non-differentiable at $0$; because of this, the (sub)differential for each coordinate in $\beta$ (i.e., $\beta^{(k)}$) is not a single value, but a range of possible values. For \autoref{eq:sparsegroupk} above, taking the subdifferential and setting equal to zero gives us the following condition that the minimum $\hat{\beta}$ needs to satisfy: 
 
 \begin{equation}
   \label{eq:subgrad}
@@ -123,14 +121,13 @@ Any global minimum is determined by the subgradient equation, which is similar t
 \end{equation}
 where $u$ is the subgradient of $\norm{\beta}_2$ and $v$ is the subgradient of $\norm{\beta}_1$. The first is defined to be $\frac{\beta}{\norm{\beta}_2}$ if $\beta$ is a nonzero vector, and is any value in the set $\{ u : \norm{u}_2 \leq 1 \}$ otherwise; the second, $v$, is defined coordinate-wise as $v_j = sign(\beta_j)$ if $v_j \neq 0$, and is any value $v_j \in \{v_j : |v_j| \leq 1 \}$ otherwise.
 
-\
 
 At this point, it is possible to use \autoref{eq:subgrad} to derive an update step and develop a cyclical coordinate-wise algorithm, but it is too computationally expensive, involving repeated large-matrix multiplication (\citep{simon2013sparse}); instead we use the majorization-minimization idea discussed above.
 
 Since the unpenalized loss $\ell (r_{(-k)}, \beta)$ is a quadratic function in $\beta$, it is equal to its second order Taylor expansion about any point $\beta_0$ in the parameter space---indeed, this is the definition of a function being quadratic. We thus start with the following equality for any given $\beta_0$ (recall that $\beta_0 = \beta_0^{(k)}$):  
 
 \begin{equation}
-\forall \beta,\ \ell(\beta) = \ell(\beta_0)+(\beta - \beta_0)^T\nabla \ell(r_{(-k)}, \beta_0)+\frac{1}{2}(\beta - \beta_0)^T H (\beta - \beta_0),
+\forall \beta,\ \ell(\beta) = \ell(\beta_0)+(\beta - \beta_0)^T\nabla \ell(\beta_0)+\frac{1}{2}(\beta - \beta_0)^T H (\beta - \beta_0),
 \label{eq:TaylorExp}
 \end{equation}
 
@@ -145,32 +142,37 @@ The matrix $X$ is, for the problems we are interested in solving, very large, an
 \label{eq:dominate}
 \end{equation}
 
-We take the original minimization problem (\autoref{eq:sparsegroupk}) and replace the loss with the right-hand side of \autoref{eq:dominate}. Thus \autoref{eq:sparsegroupk} is now dominated (majorized) by the following expression
+We take the original minimization problem (\autoref{eq:sparsegroupk}) and replace the loss $\ell$ with the right-hand side of \autoref{eq:dominate}. Thus \autoref{eq:sparsegroupk} is now dominated (majorized) by the following expression
 \begin{equation}
 \label{eq:Meq}
 M(\beta) = \ell(\beta_0)+(\beta - \beta_0)^T\nabla \ell(\beta_0)+\frac{1}{2t}\norm{\beta_0-\beta}_2^2+ (1-\alpha)\lambda\norm{\beta}_2+\alpha\lambda\norm{\beta}_1,
 \end{equation}
 which no longer involves the large matrix multiplication that using the original loss function would have confronted us with. 
 
-The optimal value $\hat{\beta}$ for $M(\beta)$ is determined by its subgradient equation, which is similar to that of \autoref{eq:sparsegroupk}:
+The optimal value $\hat{\beta}$ for $M(\beta)$ is determined by its subgradient equation, which is similar to that of \autoref{eq:subgrad}:
 
 \begin{equation}
 \frac{1}{t} (\beta - (\beta_0 - t\nabla \ell)) +(1-\alpha)\lambda u + \alpha \lambda v = 0,
 \end{equation}
-with $u$ and $v$ as before. If we substituted $0$ for $\beta$ in this equation, we would get that $\hat{\beta} = 0$ is the minimum value for $M$ if the following inequality were satisfied.
-
-The general idea at this point is that we pick a starting point $\beta^*$ in the parameter space, find a much simpler function that dominates it, then minimize that function by setting the derivative to zero and solving for $\beta$. This becomes the new $\beta^*$, and we repeat the whole process. There is a complication, which is a blessing in disguise, in the fact that the last two factors are non-differentiable; however, we can still implement this update-step process by using sub-differentials.
-
-
-
-The resulting update step is that $\beta^{(l)}$ is replaced by
+with $u$ and $v$ as before. If we solve this for $\beta$ in terms of $\beta_0$, paying close attention to the conditions for the subdifferentials when $\beta$ is and isn't $0$, we get the following equation:
 \begin{equation}
-\beta^{(l)} \leftarrow \Gamma(\beta^{(l)}) =
-\left(1-\frac{t(1-\alpha)\lambda}{||S(\beta^{(l)}-t\nabla \ell(r_{-l)},\beta^{(l)}),\ t\alpha\lambda)||_2}\right)_+ S(\beta^{(l)}-t\nabla \ell(r_{(-l)},\beta^{(l)}),t\alpha\lambda)
+\hat{\beta} = U(\beta_0) =
+\left(1-\frac{t(1-\alpha)\lambda}{\norm{S(\beta_0-t\nabla \ell(\beta_0),\ t\alpha\lambda)}_2}\right)_+ S(\beta_0-t\nabla \ell(\beta_0),t\alpha\lambda),
 \label{eq:updateStep}
 \end{equation}
+where $S$ is the coordinate-wise soft threshold operator, defined by a vector $\gamma$ and scalar $b$ according to
+\begin{equation}
+\label{softthresh}
+(S(\gamma,b))_j = sign(\gamma_j)(|\gamma_j| - b)_+,
+\end{equation}
+i.e., for each coordinate in the vector, it shrinks that coordinate in magnitude by the amount $b$, and sets it to zero if the magnitude of that coordinate was smaller than $b$ to begin with.
 
-where  $S$ is the coordinate-wise soft-threshold operator $(S(a,b))_j = \textrm{sign}(a_j)(|a_j|-b)_+$. \emph{For ease of notation, denote the right side of \autoref{eq:updateStep} by $\Gamma (\beta^{(k)})$}. Note that in updating $\beta^{(k)}$ it is possible for the whole group to be set to zero (made inactive) because of the threshold operator $()_+$ in the first part of the expression, and/or for individual components of $\beta^{(k)}$ to be zeroed out from the coordinate-wise threshold $S()$. So this algorithm setup performs variable selection at both the group and individual level.
+
+
+\autoref{eq:updateStep} defines the update step for any given group $k$, via $\beta \leftarrow U(\beta)$. At a point $\beta_{old}$, find the majorizing convex function $M$ that dominates the objective function--centered at that $\beta_{old}$--and choose the new value of beta to be the minimizer of majorized function, $\beta_{new} = U(\beta_{old})$. This update step has the advantage that it is easy to compute, and is guaranteed to converge to the optimum $\beta = \beta^{(k)}$ for that given group.  
+
+
+By examining the update step we see that it is possible for the whole group to be set to zero (made inactive) because of the threshold operator $()_+$ in the first part of the expression, and it is possible also for individual components of $\beta^{(k)}$ to be zeroed out from the coordinate-wise threshold $S()$. So this algorithm setup enforces at both the group and individual level.
 
 Because the optimization problem is convex, it can be shown that this type of descent algorithm is guaranteed to converge to the optimal solution. That is, it does not get `stuck' at any inflection points. Therefore, if that was all the algorithm did, there would be no need to check the KKT conditions for optimality. 
 
@@ -178,9 +180,9 @@ However, our algorithms both make use of the sequential strong rule, a heuristic
 
 \subsection{Strong Rule and KKT Check}
 
-As mentioned above, the strong rule \citep{tibshirani2012strong} is a heuristic that is easy and fast to perform, throwing away large numbers of predictors before computation, but it is not guaranteed to be correct, so it becomes necessary to double-check the solution with the KKT check afterwards. 
+As mentioned above, the strong rule \citep{tibshirani2012strong} is a heuristic that is easy and fast to perform, discarding large numbers of predictors before computation, but it is not guaranteed to be correct, so it becomes necessary to double-check the solution with the KKT check afterwards. 
 
-It is important to note first of all that the version of the strong rule used here, the sequential strong rule, makes critical use of the fact that we are solving for a sequence of $\lambda$ parameters. At each $\lambda_k$, we rely on the fact that we have solved the problem for the previous $\lambda_{k-1}$, and use this information to quickly discard many predictors. Without loss of generality, for the rest of this section assume that the problem has already been solved for $\lambda_{k-1}$.
+It is important to note first of all that the version of the strong rule used here, the sequential strong rule, makes critical use of the fact that we are solving for a sequence of $\lambda$ parameters. At each $\lambda_s$, we rely on the fact that we have solved the problem for the previous $\lambda_{s-1}$, and use this information to quickly discard many predictors. Without loss of generality, for the rest of this section assume that the problem has already been solved for $\lambda_{s-1}$.
 
 The motivation for the strong rule comes from the KKT check, so we start with this. The KKT stationarity condition \citep{boyd2004convex} is essentially the first-derivative test from calculus, and for this problem is 
 \[
@@ -194,18 +196,18 @@ c_j = c_j(\lambda) = S(X^{(j)T}r_{(-j)}/n,\ \alpha\lambda),
 i.e., $c_j$ at a given $\lambda$ in the sequence is the subgradient with respect to the $j$-th group.
 The (sequential) strong rule checks if the following inequality holds, and discards the $j$-th group if so:
 \begin{equation}
-|c_j(\lambda_{k-1})| < (1-\alpha)(2\lambda_k - \lambda_{k-1})
+|c_j(\lambda_{s-1})| < (1-\alpha)(2\lambda_s - \lambda_{s-1})
 \label{eq:strongcond}
 \end{equation}
 The reasoning is as follows: consider $c_j(\lambda)$ as a function of lambda. The key point is that, if this function $c_j$ were $(1-\alpha)$-Lipschitz, by definition it would satisfy
 \[
 |c_j(\lambda) - c_j(\tilde{\lambda})|\leq (1-\alpha)|\lambda-\tilde{\lambda}|
 \]
-Now suppose it were Lipschitz and also that $c_j(\lambda_{(k-1)}$ were known, i.e. we have solved the problem for $\lambda_{k-1}$. Then, \underline{when the strong rule is satisfied}, we combine the two previous inequalities to get
+Now suppose it were Lipschitz and also that $c_j(\lambda_{(s-1)}$ were known, i.e. we have solved the problem for $\lambda_{s-1}$. Then, \underline{when the strong rule is satisfied}, we combine the two previous inequalities to get
 \[
-|c_j(\lambda_k)|\leq (1-\alpha)(|c_j(\lambda_k) - c_j(\lambda_{k-1})|+|c_j(\lambda_{k-1})|)<(1-\alpha)(\lambda_{k-1}-\lambda_k+2\lambda_{k}-\lambda_{k-1})
+|c_j(\lambda_s)|\leq (1-\alpha)(|c_j(\lambda_s) - c_j(\lambda_{s-1})|+|c_j(\lambda_{s-1})|)<(1-\alpha)(\lambda_{s-1}-\lambda_s+2\lambda_{s}-\lambda_{s-1})
 \]
-which is precisely the KKT stationarity condition at $\lambda_k$. Thus, if the strong rule condition were satisfied at this group (and assuming the Lipschitz condition, which is not always true), it follows that $\beta_j$ is inactive for the current value $\lambda_k$. Since we made the Lipschitz assumption, which essentially says that $c_j$ does not change "too fast" as a function of $\lambda$, we need to check after performing the algorithm on the other groups that this group is indeed inactive. In fact, as shown in the strong rules paper (), it is very often the case that the $c_j$'s are $(1-\alpha)$-Lipschitz.
+which is precisely the KKT stationarity condition at $\lambda_s$. Thus, if the strong rule condition were satisfied at this group (and assuming the Lipschitz condition, which is not always true), it follows that $\beta_j$ is inactive for the current value $\lambda_s$. Since we made the Lipschitz assumption, which essentially says that $c_j$ does not change "too fast" as a function of $\lambda$, we need to check after performing the algorithm on the other groups that this group is indeed inactive. In fact, as shown in the strong rules paper (), it is very often the case that the $c_j$'s are $(1-\alpha)$-Lipschitz.
 
 \subsection{The three-step and four-step algorithms}
 
