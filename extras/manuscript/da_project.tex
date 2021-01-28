@@ -174,27 +174,39 @@ i.e., for each coordinate in the vector, it shrinks that coordinate in magnitude
 
 By examining the update step we see that it is possible for the whole group to be set to zero (made inactive) because of the threshold operator $()_+$ in the first part of the expression, and it is possible also for individual components of $\beta^{(k)}$ to be zeroed out from the coordinate-wise threshold $S()$. So this algorithm setup enforces at both the group and individual level.
 
-Because the optimization problem is convex, it can be shown that this type of descent algorithm is guaranteed to converge to the optimal solution. That is, it does not get `stuck' at any inflection points. Therefore, if that was all the algorithm did, there would be no need to check the KKT conditions for optimality. 
+Because the optimization problem is convex, it can be shown that this type of descent algorithm is guaranteed to converge to the optimal solution. That is, it does not get `stuck' at any inflection points or local minima. Therefore, if that was all the algorithm did, there would be no need to check the KKT conditions for optimality. 
 
-However, our algorithms both make use of the sequential strong rule, a heuristic that predicts, before computation, which groups will remain inactive, and throws them all out; this results in significant computational savings, but because of this pre-processing prediction, we will need to do a KKT check \citep{boyd2004convex} to make sure the prediction was accurate. This is described in the next section.
+However, our algorithms both make use of the sequential strong rule, a heuristic that predicts, before computation, which groups will remain inactive, and discards them; this results in significant computational savings, but because this pre-processing prediction is not always correct, we will need to do a KKT check \citep{boyd2004convex} after convergence to make sure the initial prediction was accurate. This is described in the next section.
 
 \subsection{Strong Rule and KKT Check}
 
-As mentioned above, the strong rule \citep{tibshirani2012strong} is a heuristic that is easy and fast to perform, discarding large numbers of predictors before computation, but it is not guaranteed to be correct, so it becomes necessary to double-check the solution with the KKT check afterwards. 
+As mentioned above, the strong rule \citep{tibshirani2012strong} is easy and fast to perform, discarding large numbers of predictors before computation, but it is not guaranteed to be correct, so it becomes necessary to double-check the solution after convergence, to make sure active groups were not accidentally discarded. 
 
-It is important to note first of all that the version of the strong rule used here, the sequential strong rule, makes critical use of the fact that we are solving for a sequence of $\lambda$ parameters. At each $\lambda_s$, we rely on the fact that we have solved the problem for the previous $\lambda_{s-1}$, and use this information to quickly discard many predictors. Without loss of generality, for the rest of this section assume that the problem has already been solved for $\lambda_{s-1}$.
+The version of the strong rule used here is called the \textbf{sequential strong rule}; it makes use of the fact that we are solving for a sequence $\{\lambda_1 \geq \lambda_2 \geq \dots \ ,\ \lambda_S\}$ of lambda parameters, rather than a single value. At each $\lambda_s$, we rely on the fact that we have solved the problem for the previous $\lambda_{s-1}$, and use this information to quickly discard many predictors. Without loss of generality, for the rest of this section assume that the problem has already been solved for $\lambda_{s-1}$.
 
-The motivation for the strong rule comes from the KKT check, so we start with this. The KKT stationarity condition \citep{boyd2004convex} is essentially the first-derivative test from calculus, and for this problem is 
+
+
+The motivation for the strong rule comes from the KKT stationarity condition, which is similar to the first derivative test for minima \citep{boyd2004convex}. Explicitly, this is the condition that the subdifferential equations (see \autoref{eq:subgrad}) are satisfied at the proposed minimum $\hat{\beta}^{(k)}(\lambda_s)$. Note that we are still focusing on a given group $k$, but we are emphasizing the dependence on $\lambda$ now.
+ 
+From \autoref{eq:subgrad} we derive the condition used in the algorithm to check the KKT stationarity condition. Because the algorithm is guaranteed to converge to the optimum for all active groups, we only need to check the condition required for $\hat{\beta}^{(k)} = 0$ to be the solution (at a given $\lambda$). First, the subgradient equations reduce to the following:
+
+\[
+X^{(k)T}r_{(-k)}/n - \alpha \lambda v = (1-\alpha) \lambda u,
+\]
+where $u$ and $v$ are the subdifferentials of the $l-2$ and $l-1$ norms, as in section 2.1. We claim that if the following inequality
+
 \[
 ||S(X^{(k)T}r_{(-k)}/n,\ \alpha\lambda)||_2 \leq (1-\alpha)\lambda.
 \]
-The left-hand side of this inequality is the norm of the (sub)gradient of the loss $\ell(r_{(-k)},\beta)$, where $r_{(-k)}= y - \sum_{\ell \neq k} X^{(l)}\beta^{(l)}$.
-Denote 
+is satisfied (where $S$ is the soft-threshold operator), then $\hat{\beta}^{(k)}=0$ is the minimum for that group at that particular lambda. The reason for this is that we can find a subgradient $v$ such that $X^{(k)T}r_{(-k)}/n - \alpha \lambda v = S(X^{(k)T}r_{(-k)}/n,\ \alpha\lambda)$, and if the above inequality is satisfied, we can also find a subgradient $u$ such that the subgradient equations are satisfied.
+
+So we now have that the KKT stationarity condition is precisely the inequality above for inactive groups, and this is what is checked after convergence in our algorithm, for all the groups that were either discarded or otherwise remained inactive. For the rest of this section, we will denote the left-hand side of the inquality by
 \[
-c_j = c_j(\lambda) = S(X^{(j)T}r_{(-j)}/n,\ \alpha\lambda),
+c_k := c_k(\lambda) = S(X^{(k)T}r_{(-k)}/n,\ \alpha\lambda),
 \]
-i.e., $c_j$ at a given $\lambda$ in the sequence is the subgradient with respect to the $j$-th group.
-The (sequential) strong rule checks if the following inequality holds, and discards the $j$-th group if so:
+
+
+The sequential strong rule checks if the following inequality holds, and discards the $j$-th group if so:
 \begin{equation}
 |c_j(\lambda_{s-1})| < (1-\alpha)(2\lambda_s - \lambda_{s-1})
 \label{eq:strongcond}
