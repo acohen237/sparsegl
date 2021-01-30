@@ -180,7 +180,7 @@ Because the optimization problem is convex, with differentiable loss and separab
 
 However, our algorithms both make use of the sequential strong rule, a heuristic that predicts, before computation, which groups will remain inactive, and discards them; this results in significant computational savings, but because this pre-processing prediction is not always correct, we will need to do a KKT check \citep{boyd2004convex} after convergence to make sure the initial prediction was accurate. This is described in the next section.
 
-\subsection{Strong Rule and KKT Check}
+\subsection{KKT Check and the Strong Rule}
 
 As mentioned above, the strong rule \citep{tibshirani2012strong} is easy and fast to perform, discarding large numbers of predictors before computation, but it is not guaranteed to be correct, so it becomes necessary to double-check the solution after convergence, to make sure active groups were not accidentally discarded. 
 
@@ -188,11 +188,11 @@ The version of the strong rule used here is called the \textbf{sequential strong
 
 
 
-The motivation for the strong rule comes from the KKT stationarity condition, which is similar to the first derivative test for minima \citep{boyd2004convex}. Explicitly, this is the condition that the subdifferential equations (see \autoref{eq:subgrad}) are satisfied at the proposed minimum $\hat{\beta}(\lambda_s)$. Note that we are emphasizing the dependence of $\hat{\beta},\ r_{(-k)}$, and so forth, on $\lambda$ now.
+The motivation for the strong rule comes from the KKT stationarity condition, which is similar to the first derivative test for minima \citep{boyd2004convex}. Explicitly, this is the condition that the subdifferential equations (see \autoref{eq:subgrad}) are satisfied at the proposed minimum $\hat{\beta} =\hat{\beta}(\lambda_s)$. This is the necessary and sufficient condition for a global optimum. Note that we will be emphasizing the dependence of $\hat{\beta},\ r_{(-k)}$, and so forth, on $\lambda$ in this section.
  
-From \autoref{eq:subgrad} we derive an inequality that is equivalent to the KKT stationarity condition in the case that $\hat{\beta}^{(k)}=0$. Because the algorithm is guaranteed to converge to the optimum for all groups, we only need to check the condition required for $\hat{\beta}^{(k)} = 0$ to be the solution (at a given $\lambda$), since these are predicted and discarded by the strong rule. 
+From \autoref{eq:subgrad} we derive an inequality that is equivalent to the KKT stationarity condition in the case that $\hat{\beta}^{(k)}=0$. Because the algorithm is guaranteed to converge to the optimum for all groups on which it is run, we only need to check the condition for the discarded groups, i.e., those that we have preassigned $\hat{\beta}^{(k)} = 0$ (at a given $\lambda$). 
 
-First, the subgradient equations reduce to the following:
+First, if $\hat{\beta}^{(k)}=0$ then the subgradient equations reduce to the following:
 
 \begin{equation}
 \label{eq:subgradreduced}
@@ -204,51 +204,47 @@ where $u$ and $v$ are the subdifferentials of $\norm{\beta^{(k)}}_2$ and $\norm{
 \label{eq:kkt}
 \norm{S(X^{(k)T}r_{(-k)}/n,\ \alpha\lambda)}_2 \leq (1-\alpha)\lambda
 \end{equation}
-is satisfied (with $S$ the soft-threshold operator from section 2.1), then $\hat{\beta}^{(k)}=0$ is the optimum for that group at that particular lambda.
+is satisfied (with $S$ the soft-threshold operator from section 2.1), then $\hat{\beta}^{(k)}=0$ is the optimum for that group at that particular lambda. In other words, this inequality is equivalent to the kkt stationarity condition for inactive groups.
 
 The proof is as follows: denote $\gamma = X^{(k)T}r_{(-k)}/n$, and define $v_j = sign((\gamma)_j)$ if $|\gamma_j| > \alpha \lambda$, and $v_j = \frac{\gamma_j}{\alpha \lambda}$ otherwise. Then 
 \[
 \gamma - \alpha \lambda v = S(\gamma,\alpha \lambda).
 \]
-Next, define $u = S(\gamma,\alpha \lambda)/(1-\alpha)(\lambda)$. From these two definitions it follows that \autoref{eq:subgradreduced} is satisfied, but not necessarily by elements of the subdifferentials. But if \autoref{eq:subgradineq} is also satisfied, then $u$ is a subgradient of $\norm{\beta^{(k)}}_2$, and $v$ a subgradient of $\norm{\beta^{(k)}}_1$, evaluated at $\beta^{(k)}=0$.
+Next, define $u = S(\gamma,\alpha \lambda)/(1-\alpha)(\lambda)$. From these two definitions it follows that \autoref{eq:subgradreduced} is satisfied, but not necessarily by elements of the subdifferentials. But if \autoref{eq:kkt} is also satisfied, then $u$ is a subgradient of $\norm{\beta^{(k)}}_2$, and $v$ a subgradient of $\norm{\beta^{(k)}}_1$, evaluated at $\beta^{(k)}=0$.
 
-We have derived the KKT condition for the $k$-th group to be $0$. We will now derive and explain the strong rule, which is based on this inequality. At this point it will be helpful to emphasize the dependence of these expressions on $\lambda$. First, we define, for group $k$, a function of $\lambda$:
+We have derived the KKT condition for the $k$-th group to be $0$. We will now derive and explain the strong rule, which is based on this inequality. At this point it will be helpful to make explicit the dependence of these expressions on $\lambda$. First, for each group $k$ we define a function of $\lambda$:
 
 \begin{equation}
 c_k(\lambda) = S(X^{(k)T}r_{(-k)}(\lambda)/n,\ \alpha\lambda).
 \end{equation}
 So for example \autoref{eq:kkt} becomes $\norm{c_k(\lambda)}_2 \leq (1-\alpha)\lambda$. There is a different function for every group $k$. Note that, since $r_{(-k)}$ involves $\hat{\beta}$, we needed to have actually solved the optimization problem at $\lambda$ in order to compute $c_k(\lambda)$.
 
-We can finally define the strong rule check for discarding groups. Assume that the optimization problem has been solved for $\lambda_{s-1}$; then if the following inequality holds
+It is natural to consider the properties such a function would have. These functions are continuous, for example, as the solution to the optimization problem \autoref{eq:sparsegl} varies continuously with its tuning parameter $\lambda$. We are now going to make an assumption about $c_k$, which seems unintuitive at first, and in fact is not always true, but is true often enough to be useful: we assume that $c_k(\lambda)$ is $(1-\alpha)$-Lipschitz, ie., that
+\begin{equation}
+\label{eq:lipschitz}
+\forall \lambda,\ \lambda^{\prime}\ \  \ \norm{c_k(\lambda)-c_k(\lambda^{\prime})}_2 \leq (1-\alpha)\norm{\lambda - \lambda^{\prime}}_2.
+\end{equation}
+This is essentially saying that $c_k$ is not only continuous but does not vary 'too fast'; it is equivalent to saying that the function is differentiable almost everywhere and has bounded derivative.
+
+
+We can finally define the \textbf{strong rule} check for discarding groups. Assume that the optimization problem has been solved for $\lambda_{s-1}$; then if the inequality
 \begin{equation}
 \label{eq:strong}
-\norm{c_k(\lambda_{s-1})}_2 \leq 2\lambda_s - \lambda_{s-1},
+\norm{c_k(\lambda_{s-1})}_2 \leq (1-\alpha)(2\lambda_s - \lambda_{s-1})
 \end{equation}
-then we discard group $k$ from the problem, before solving for $\lambda_s$. In other words, when we move from $\lambda_{s-1}$ to $\lambda_s$, we run this check on all groups, using the previously computed solution, and then when we move on to the coordinate descent, we only consider those groups that failed this inequality.
+holds, then we discard group $k$ from the problem, before solving for $\lambda_s$. That is to say, when we move from $\lambda_{s-1}$ to $\lambda_s$, we first run this check on all groups, using the previously computed solution for $\hat{\beta}(\lambda_{s-1})$, and then move on to coordinate descent, using only those groups that failed this inequality.
 
-This discarding rule is fast, using the previously computed solution and a simple inequality, and in practice it tends to accurately discard large numbers of groups. Where does this rule come from?
+This discarding rule is fast, using the previously computed solution and a simple inequality, and in practice it tends to accurately discard large numbers of groups. The reason why it works is as follows: assuming the Lipschitz condition on $c_k(\lambda)$, then if the strong rule is satisfied for $\lambda_s$, we get by the triangle inequality that
+\begin{align*}
+\norm{c_k(\lambda_s)}_2 &\leq \norm{c_k(\lambda_s) - c_k(\lambda_{s-1})}_2 + \norm{c_k(\lambda_{s-1})}_2 \\
+&\leq (1-\alpha)(\lambda_{s-1} - \lambda_s) + (1-\alpha)(2\lambda_s - \lambda_{s-1})
+=(1-\alpha)\lambda_s,
+\end{align*}
+which is exactly the KKT condition required for $\hat{\beta}^{(k)}(\lambda_s) = 0$, \autoref{eq:kkt}.
 
+Note that the upper bound for the strong rule condition, the right-hand side of \autoref{eq:strong}, is smaller than the upper bound for the KKT condition inequality, i.e., $(1-\alpha)(2\lambda_s - \lambda_{s-1}) < (1-\alpha)(\lambda_{s-1})$, since $\lambda_{s} < \lambda_{s-1}$. We see from this that the strong rule condition, which is a condition on the subdifferential at $\lambda_{s-1}$, is stronger than the zero KKT condition at $\lambda_{s-1}$; the logic of the strong rule is that, if group $k$ satisfied the zero KKT condition at $\lambda_{s-1}$, with some wiggle room in the inequality, and if the function $c_k(\lambda)$ which characterizes the zero KKT condition does not change too much going from one lambda to the next, then the zero KKT will be satisfied for the next value $\lambda_s$.
 
-So we now have that the KKT stationarity condition is precisely the inequality above for inactive groups, and this is what is checked after convergence in our algorithm, for all the groups that were either discarded or otherwise remained inactive. For the rest of this section, we will denote the left-hand side of the inquality by
-\[
-c_k := c_k(\lambda) = S(X^{(k)T}r_{(-k)}/n,\ \alpha\lambda),
-\]
-
-
-The sequential strong rule checks if the following inequality holds, and discards the $j$-th group if so:
-\begin{equation}
-|c_j(\lambda_{s-1})| < (1-\alpha)(2\lambda_s - \lambda_{s-1})
-\label{eq:strongcond}
-\end{equation}
-The reasoning is as follows: consider $c_j(\lambda)$ as a function of lambda. The key point is that, if this function $c_j$ were $(1-\alpha)$-Lipschitz, by definition it would satisfy
-\[
-|c_j(\lambda) - c_j(\tilde{\lambda})|\leq (1-\alpha)|\lambda-\tilde{\lambda}|
-\]
-Now suppose it were Lipschitz and also that $c_j(\lambda_{(s-1)}$ were known, i.e. we have solved the problem for $\lambda_{s-1}$. Then, \underline{when the strong rule is satisfied}, we combine the two previous inequalities to get
-\[
-|c_j(\lambda_s)|\leq (1-\alpha)(|c_j(\lambda_s) - c_j(\lambda_{s-1})|+|c_j(\lambda_{s-1})|)<(1-\alpha)(\lambda_{s-1}-\lambda_s+2\lambda_{s}-\lambda_{s-1})
-\]
-which is precisely the KKT stationarity condition at $\lambda_s$. Thus, if the strong rule condition were satisfied at this group (and assuming the Lipschitz condition, which is not always true), it follows that $\beta_j$ is inactive for the current value $\lambda_s$. Since we made the Lipschitz assumption, which essentially says that $c_j$ does not change "too fast" as a function of $\lambda$, we need to check after performing the algorithm on the other groups that this group is indeed inactive. In fact, as shown in the strong rules paper (), it is very often the case that the $c_j$'s are $(1-\alpha)$-Lipschitz.
+Finally, we should reiterate that it is possible for the strong rule to make a mistake, the Lipschitz assumption is just that, an assumption. Because of this, it is critical that, after discarding some of the groups and running the algorithm on the others, the zero KKT condition is checked on all those discarded groups to make sure that the strong rule made the right decision, and that those groups are actually zero. Violators of the KKT condition should be put in 'active' status and the algorithm re-run with those groups included. The details of this are in the next section.
 
 \subsection{The three-step and four-step algorithms}
 
