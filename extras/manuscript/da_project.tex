@@ -246,89 +246,111 @@ Note that the upper bound for the strong rule condition, the right-hand side of 
 
 Finally, we should reiterate that it is possible for the strong rule to make a mistake, the Lipschitz assumption is just that, an assumption. Because of this, it is critical that, after discarding some of the groups and running the algorithm on the others, the zero KKT condition is checked on all those discarded groups to make sure that the strong rule made the right decision, and that those groups are actually zero. Violators of the KKT condition should be put in 'active' status and the algorithm re-run with those groups included. The details of this are in the next section.
 
+Now that we understand the KKT check and strong rule check on groups, we briefly discuss some notation which is used in the next section. In this section we defined a function $c_k(\lambda)$ that was parameterized by the group $k$ and taking in as an argument $\lambda$. We will change emphasis and define a function:
+\[
+\mathcal{S}_{\lambda}(A),
+\]
+that takes in a subset of the set of groups, $A$, and returns the set of all elements of $A$ which \textbf{fail} the strong rule check at $\lambda$. This is precisely the set of groups that we suspect of being active, that we should run the update step on. The reason why we want this notation is that it is a waste of time to run the strong rule check on those already known or suspected to be active. 
+
+Similarly, we will define the function 
+\[
+KKT_{\lambda}(A)
+\]
+that takes in a  set of groups, and returns the subset of those elements of $A$ that \textbf{fail} the 0-KKT check, i.e. those elements $k \in A$ for which $\norm{c_k(\lambda)}_2 > (1-\alpha)\lambda$. Again, we do not need to check the KKT conditions for those groups on which the update step was run until convergence, so we will want to specify the subset of groups that we need to run the KKT check on after convergence of $U$.
+
 \subsection{The three-step and four-step algorithms}
 
 
+
+
 \begin{algorithm}[tb!]
-  \caption{Three-step Algorithm\label{alg:threeStep}}
+  \caption{The Three-step Algorithm using the update step $U$ on suspected active groups via the Strong Rule, with a subsequent KKT check on inactive groups} 
+  \label{alg:threeStep}
   \begin{algorithmic}
-    \STATE {\bf Input:} $\Lambda = \{\lambda_0>\lambda_1> \dots > \lambda_K$ \},\ $\mathcal{E}$,\ $\mathcal{A}$
-    \STATE Set $\mathcal{E}=\mathcal{A}=\emptyset$; set $d=\epsilon+1$
-    	%\COMMENT{Step 0}
-    \STATE {\bf Step 1:} $\mathcal{E} \leftarrow  \mathcal{E}\cup \mathcal{S}(\lambda_{k-1},\ \mathcal{E}^c)$
-	\STATE {\bf Step 2:}    
-    \WHILE{$d > \epsilon$} 
-	\FOR{$l=1$ to $m$}    
-    \STATE  $\beta^{(l)} \leftarrow \Gamma (\beta^{(l)})$
-    \STATE If $\beta^{(l)} \neq 0$ put $\beta^{(l)} \in \mathcal{A}$	
+	\STATE 1. Initialize $\lambda = \lambda_s$. Run strong rule $\mathcal{S}_{\lambda}(\mathcal{E}^c)$, set $\mathcal{E} \leftarrow \mathcal{E}\cup\mathcal{S}_{\lambda}(\mathcal{E}^c)$    
+    \STATE 2. Cycle through groups, run until convergence:
+	\WHILE{$e>\epsilon$}
+	\STATE {$e = 0$}	
+	\FOR {$k=1 \dots m$}
+	\STATE \textbf{if} $k \in \mathcal{E}^c$ \textbf{CYCLE}
+	\STATE $e = max(e,\ \norm{\beta^{(k)} - U(\beta^{(k)}})$
+	\STATE	$\beta^{(k)} \leftarrow U(\beta^{(k)})$
 	\ENDFOR
-	\STATE $d \leftarrow \max_{l} \norm{\beta^{(l)}_{k-1}-\beta^{(l)}_{k}}$ 
-	\ENDWHILE    
-    
-    \STATE {\bf Step 3:} $\mathcal{E} \leftarrow  \mathcal{E}\cup KKT(\mathcal{E}^c)$; if $KKT(\mathcal{E}^c) \neq \emptyset$, go back to step 2.  
-    \RETURN $\beta$ vector for $\lambda_k$
-    \STATE $\lambda_k \leftarrow \lambda_{k+1}$
-    \STATE {\bf Return to step 1}
+	\STATE if $e < \epsilon$ end \textbf{while}
+	\ENDWHILE
+	\STATE 3. Run KKT check on inactive groups:
+	\STATE \textbf{if} $KKT_{\lambda}(\mathcal{E}^c) \neq \emptyset$ \textbf{then}:
+	\STATE $\mathcal{E} \leftarrow \mathcal{E}\cup KKT_{\lambda}(\mathcal{E}^c)$
+	\STATE \textbf{goto} step 2
+	\STATE \textbf{else}:
+	\STATE Save $\hat{\beta} = \hat{\beta}(\lambda_s)$, \textbf{goto} step 1
   \end{algorithmic}
 \end{algorithm}
 
 
-There are two algorithms in our package that perform sparse group lasso: the three-step algorithm and the four-step algorithm. Both algorithms use the majorized coordinate-descent update step, and mainly differ in how they use the strong rule and how they store the active and potentially active groups. Before discussing these in detail, we need some notation.
 
-First, let $\mathcal{S}_{\lambda}(A)$ be a function which performs the strong rule check on a set of groups $A$ at $\lambda$, and returns the set $A^{\prime}$ of groups in $A$ that pass the strong rule check. For each individual group in the set $A$, it checks the inequality in \autoref{eq:strongcond} (the sequential strong rule). Recall that the strong rule check at a given $\lambda_k$ actually involves both $\lambda_{k}$ and $\lambda_{k-1}$; this is suppressed in this notation, with this understanding.
+There are two algorithms in our package that perform sparse group lasso: the three-step algorithm and the four-step algorithm. Both algorithms use the majorized coordinate-descent update step $U$ from section 2.1, and mainly differ in how they use the strong rule and how they store the active and potentially active groups. Before discussing these in detail, we need some notation.
+
+First, recall from the end of the previous section that $\mathcal{S}_{\lambda}(A)$ is a function which performs the strong rule check on a set of groups $A$ at $\lambda$, and returns the set $A^{\prime}$ of groups in $A$ that fail the strong rule check. For each individual group in the set $A$, it checks the inequality in \autoref{eq:strong}. Recall that the strong rule check at a given $\lambda_k$ actually involves both $\lambda_{k}$ and $\lambda_{k-1}$; this is suppressed in this notation, with this understanding.
 
 Similarly, the function $\textrm{KKT}_{\lambda} (A)$ performs the KKT check described in the previous section, and returns the subset $A^{\prime}$ of groups that fail the KKT check. The idea for both of these functions is to keep track of which groups are potentially active (nonzero) for the given $\lambda$. 
 
-Both of these functions take in only a subset of the groups of coefficients, rather than being run on the whole set each time; this is to save time and reduce redundancy. It would not make sense to run a KKT check on those groups that are already known to be active (for the given $\lambda$), because the whole point is to figure out which groups are mistakenly put down as 'inactive'. Similarly for the strong rule check, it would be a waste of time to run that inequality on groups that are already known or suspected of being active, since the point of the strong rule check is to separate those suspected of being active from those that are not, and only updating the coefficient estimates for the suspected active groups.
+Both of these functions take in only a subset of the groups of coefficients, rather than being run on the whole set each time; this is to save time and reduce redundancy. It would not make sense to run a KKT check on those groups that are already known to be active (for the given $\lambda$), because the coordinate descent algorithm is guaranteed to converge for the groups on which is is run. Similarly for the strong rule check, it would be a waste of time to run that inequality on groups that are already known or suspected of being active, since the point of the strong rule check is to separate those suspected of being active from those that are not, and only updating the coefficient estimates for the suspected active groups.
 
-Thus we need to keep track of the active and suspected active groups. First, let $\mathcal{E}$ be the set of groups that are suspected of being active at a given $\lambda$; this is the subset of groups that we will perform the update step on, repeatedly until convergence. It is important to note that there is no mention of $\lambda$ for this set---this set is only increasing in membership, and gets passed on from one $\lambda$ to the next. In other words, once a group is suspected of being active and gets put in $\mathcal{E}$, it never leaves this set, and if group $l$ is put in $\mathcal{E}$ for $\lambda_{k-1}$, it is automatically included in this set when we start the algorithm for the next value, $\lambda_k$. 
+We will keep track of active/potentially active groups with a set $\mathcal{E}$; this is the set of all groups that have failed the strong rule check, or have failed the KKT check, and it is precisely this set of groups that we perform the update step on until convergence. This set is ever-increasing, that is, if a group fails the strong rule or KKT check at some $\lambda_s$ and is put in $\mathcal{E}$, it stays in $\mathcal{E}$ for every subsequent $\lambda_{s+i}$. It is possible for a group to be active for some value of lambda and then become inactive later on in the lambda path, but this is unlikely, and we are not losing too much efficiency by making this group ever-increasing.
 
-The set $\mathcal{A}$ is the set of groups that are actually active, i.e. nonzero, for a given $\lambda$. This set is also never-decreasing, so if a group becomes active for $\lambda_k$, it stays in that set for every subsequent lambda. This set is used in addition to $\mathcal{E}$ in the three-step algorithm, because we use a warm-start for $\beta^*$ every time we progress to the next $\lambda$, and we only want to keep track of the small set of nonzero coefficients for the warm start. This set is not used in the four-step algorithm.
 
-Next, let $\mathcal{E}$ be the set of indices for the groups that are potentially active (nonzero) at $\lambda_k$. There are two ways in which groups get added to $\mathcal{E}$: if a group passes the strong rule check at any point it gets added, and if a group fails the KKT check at the end of convergence, it gets added. $\mathcal{E}$ is the main set that we keep track of, and is used in both algorithms; this is the set of groups that we actually perform the update step on. Similarly to $\mathcal{A}$, this set is ever-increasing--once a group gets added to $\mathcal{E}$, it remains there from then on, for all subsequent $\lambda$. For both $\mathcal{E}$ and $\mathcal{A}$, it is possible that a group is active for $\lambda_{k}$ but is inactive for a subsequent $\lambda$, but this is rare, and since the set of active groups is usually very small (for any $\lambda$), it does not pose a problem to pass the sets over from $\lambda_{k-1}$ to $\lambda_k$.
+%The set $\mathcal{A}$ is the set of groups that are actually active, i.e. nonzero, for a given $\lambda$. This set is also never-decreasing, so if a group becomes active for $\lambda_k$, it stays in that set for every subsequent lambda. This set is used in addition to $\mathcal{E}$ in the three-step algorithm, because we use a warm-start for $\beta^*$ every time we progress to the next $\lambda$, and we only want to keep track of the small set of nonzero coefficients for the warm start. This set is not used in the four-step algorithm, and since it is used only for saving and allocating data, we do not include it in the schematic for \autoref{alg:threeStep}.
 
-\
+Finally, in the convergence step of the algorithms (step 2 in both), we want to keep track of how much $\beta$ is moving; if it appears to have found a minimum, and is not moving much from the update step, we want to declare convergence and kick out of the updating step. Because of this, we keep track of the maximum change in the $\beta^{(k)}$'s with $e$. Once $e < \epsilon$, where $\epsilon$ is some pre-determined small amount, we exit step 2. This is used in both algorithms.
 
-First we discuss the three-step algorithm, \autoref{alg:threeStep}. In the initialization (step 0) of the algorithm, we set the lambda path (the decreasing set of $\lambda$ 's which comprise the parameter space), and start keeping track of two sets, $\mathcal{E} = \emptyset = \mathcal{A}$ , which are initially empty. Both of these sets grow as the algorithm is run; predictors get put into these groups if they pass certain checks, but never leave once they are put in.
+\paragraph{Three-step algorithm}
 
-Without loss of generality assume that we have run the algorithm for a few lambdas, and are at $\lambda = \lambda_{k}$. The first step (step 1) of the algorithm is to run the strong rule check on all predictor groups in $\mathcal{E}^c$, and every group that passes the strong rule (which is computed using the gradient at the previous lambda) gets put in the set $\mathcal{E}$. So, as discussed above, $\mathcal{E}$ is essentially keeping track of every predictor that has ever passed the strong rule check--these are candidates for active groups.
+First we discuss the three-step algorithm, \autoref{alg:threeStep}. In the initialization (step 0) of the algorithm, we set the lambda path (the decreasing set of $\lambda$ 's which comprise the parameter space), and start keeping track $\mathcal{E} = \emptyset$, which is initially empty. 
 
-In the second step (step 2), we loop over $\mathcal{E}$, performing the update step until convergence. Again, this is a type of coordinate descent, but we are saving a lot of time by keeping all groups in $\mathcal{E}^c$ zero and only updating on those suspected of being active. Now, although $\mathcal{E}$ is keeping track of the 'strong set', any time a group actually becomes active (i.e. is updated to be nonzero), it gets put in $\mathcal{A}$, the 'active' set. This is because while we save the indices of the potentially-active groups, we only save the values of the actually active groups, to use as a warm start when moving from $\lambda_{k-1}$ to $\lambda_k$.
+Without loss of generality assume that we have run the algorithm for a few lambdas, and are at $\lambda = \lambda_{s}$. The first step (step 1) of the algorithm is to run the strong rule check on all predictor groups in $\mathcal{E}^c$, and every group that passes the strong rule (which is computed using the gradient at the previous lambda) gets put in the set $\mathcal{E}$. So, as discussed above, $\mathcal{E}$ is essentially keeping track of every predictor that has ever passed the strong rule check--these are candidates for active groups.
 
-Finally, after we have converged (the update step for all groups is changing values by less than a small, pre-determined $\epsilon$), we need to perform the KKT check to make sure that we didn't accidentally leave some active groups at 0. Again, if we were not using the strong rule check, this would be unneccessary. The only potential violators are in the complement of $\mathcal{E}$, so: run the KKT check on $\mathcal{E}^c$, throw any violators into $\mathcal{E}$ and go back to step 2. If there are no violators, we have found the solution at the given $\lambda_k$, so we save the values in $\mathcal{A}$, as well as the gradients, and move on to $\lambda_{k+1}$.
+In the second step (step 2), we loop over $\mathcal{E}$, performing the update step until convergence. Again, this is a type of coordinate descent, but we are saving a lot of time by keeping all groups in $\mathcal{E}^c$ zero and only updating on those suspected of being active. %Now, although $\mathcal{E}$ is keeping track of the 'strong set', any time a group actually becomes active (i.e. is updated to be nonzero), it gets put in $\mathcal{A}$, the 'active' set. This is because while we save the indices of the potentially-active groups, we only save the values of the actually active groups, to use as a warm start when moving from $\lambda_{k-1}$ to $\lambda_k$.
 
-\
+Finally, after we have converged (the update step for all groups is changing values by less than a small, pre-determined $\epsilon$), we need to perform the KKT check to make sure that we didn't accidentally leave some active groups at 0. Again, if we were not using the strong rule check, this would be unneccessary. The only potential violators are in the complement of $\mathcal{E}$, so: run the KKT check on $\mathcal{E}^c$, throw any violators into $\mathcal{E}$ and go back to step 2. If there are no violators, we have found the solution at the given $\lambda_s$, so we save the values for $\beta(\lambda_s)$, and move on to $\lambda_{s+1}$.
 
-The four-step algorithm, \autoref{alg:fourStep}, has a slight refinement over the three-step. It is as follows. First note that there is only one set to keep track of, the set $\mathcal{E}$. The setup is the same.
+\paragraph{Four-step algorithm}
 
-\begin{algorithm}
-  \caption{Four-step Algorithm\label{alg:fourStep}}
+The four-step algorithm, \autoref{alg:fourStep}, has a slight refinement over the three-step. Instead of adding groups into the 'active' set $\mathcal{E}$ before running the algorithm, the algorithm is first run until convergence on the original set $\mathcal{E}$, and the strong rule is run afterwards. The details are as follows.
+
+\begin{algorithm}[tb!]
+  \caption{The four-step Algorithm using the strong rule \textit{after} convergence} 
+  \label{alg:fourStep}
   \begin{algorithmic}
-    \STATE {\bf Input:} $\Lambda = \{\lambda_0>\lambda_1> \dots > \lambda_K$\},\ $\mathcal{E}$
-    \STATE Set $\mathcal{E}=\emptyset$; set $d=\epsilon+1$ 
-    	%\COMMENT{Step 0}
-	\STATE {\bf Step 1:}    
-    \WHILE{$d > \epsilon$} 
-	\FOR{$l=1$ to $m$}    
-    \STATE  $\beta^{(l)} \leftarrow \Gamma (\beta^{(l)})$
-    \STATE If $\beta^{(l)} \neq 0$ put $\beta^{(l)} \in \mathcal{A}$	
+	\STATE 1. Initialize $\lambda = \lambda_s$. 
+    \STATE 2. Cycle through groups, run until convergence:
+	\WHILE{$e>\epsilon$}
+	\STATE {$e = 0$}	
+	\FOR {$k=1 \dots m$}
+	\STATE \textbf{if} $k \in \mathcal{E}^c$ \textbf{CYCLE}
+	\STATE $e = max(e,\ \norm{\beta^{(k)} - U(\beta^{(k)}})$
+	\STATE	$\beta^{(k)} \leftarrow U(\beta^{(k)})$
 	\ENDFOR
-	\STATE $d \leftarrow \max_{l} \norm{\beta^{(l)}_{k-1}-\beta^{(l)}_{k}}$ 
-	\ENDWHILE    
-    \STATE {\bf Step 2:} Compute $S = \mathcal{S}(\lambda_{k-1}, \mathcal{E}^c)$
-    \STATE {\bf Step 3:} $\mathcal{E} \leftarrow  \mathcal{E}\cup KKT(S)$; if $KKT(S) \neq \emptyset$, go back to step 1.  
-	\STATE {\bf Step 4:} $\mathcal{E} \leftarrow  \mathcal{E}\cup KKT(\mathcal{E}^c)$; if $KKT(\mathcal{E}^c) \neq \emptyset$, go back to step 1.
-    \RETURN $\beta$ vector for $\lambda_k$
-    \STATE $\lambda_k \leftarrow \lambda_{k+1}$
-    \STATE {\bf Return to step 1}
+	\STATE if $e < \epsilon$ end \textbf{while}
+	\ENDWHILE
+	\STATE 3. Run strong rule on inactive groups, then the KKT check on violators--using current $\hat{\beta}$ for KKT:
+	\STATE \textbf{if} $KKT_{\lambda_s}(\mathcal{S}_{\lambda_s}(\mathcal{E}^c)) \neq \emptyset$ \textbf{then}
+	\STATE $\mathcal{E} \leftarrow \mathcal{E}\cup KKT_{\lambda_s}(\mathcal{S}_{\lambda_s}(\mathcal{E}^c))$
+	\STATE \textbf{goto} step 2
+	\STATE 4. Run KKT check on whole inactive set:
+	\STATE \textbf{if} $KKT_{\lambda_s}(\mathcal{E}^c) \neq \emptyset$ then:
+	\STATE $\mathcal{E} \leftarrow \mathcal{E}\cup KKT_{\lambda_s}(\mathcal{E}^c))$, \textbf{goto} step 2
+	\STATE Save $\hat{\beta} = \hat{\beta}(\lambda_s)$, \textbf{goto} step 1
   \end{algorithmic}
 \end{algorithm}
 
 
 
-Assume we have solved the problem for $\lambda_{k-1}$. We loop over $\mathcal{E}$, which was passed over from $\lambda_{k-1}$, and update until convergence. The difference here is that we do not perform the strong check first. After we have run the update loop until convergence on our set, we then perform the strong rule on the complement, $\mathcal{E}^c$. For any groups that pass the strong rule, we run the kkt check; if there are any violators, put them in $\mathcal{E}$ and go back to step 1. 
+Assume we have solved the problem for $\lambda_{s-1}$. We loop over $\mathcal{E}$, which was passed over from $\lambda_{s-1}$, and update until convergence. The difference here is that we do not perform the strong check first. After we have run the update loop until convergence on the active set, we then perform the strong rule on the complement, $\mathcal{E}^c$ Since the strong rule depends on the computation of $\beta(\lambda_{s-1})$, it doesn't actually matter if we do this before or after step 2. For any groups that fail the strong rule check, we run the kkt check; if there are any violators, put them in $\mathcal{E}$ and go back to step 1. So the difference is that the condition for adding groups to $\mathcal{E}$ is more stringent and is done after step 2 
 
-Otherwise, we run the KKT check on the full complement $\mathcal{E}^c$. Again, if there are any violators, we put them in $\mathcal{E}$ and go back to step 1. If there are no violators, we are done, and we move on to the next $\lambda$ in the sequence.
+Otherwise, we run the KKT check on the full complement $\mathcal{E}^c$. Again, if there are any violators, we put them in $\mathcal{E}$ and go back to step 2. If there are no violators, we are done, and we move on to the next $\lambda$ in the sequence.
+
+The main difference between this algorithm and the three-step is that we are more careful to put potentially active groups into the active set. Whereas in the three-step algorithm we use the strong rule to put groups in $\mathcal{E}$ immediately, in the four-step algorithm we are more hesitant to commit to running the algorithm on the strong rule alone. We run the strong rule after convergence, but then double-check that the suspected 'active' groups are actually so by using the KKT check. Note that we couldn't simply add a KKT check right after the strong rule check: the latter uses the previous $\lambda$'s solution but the former uses the current solution.
 
 %\begin{algorithm}
 %  \caption{Four-step Algorithm\label{alg:fourStept}}
