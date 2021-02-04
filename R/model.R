@@ -14,7 +14,9 @@ sgl <- function(
         x = sweep(x,2,xs,"/")
     }
     gamma <- rep(NA, bn)
-    for (g in 1:bn) gamma[g] <- RSpectra::svds(x[,ix[g]:iy[g]],1,0,0)$d^2
+    for (g in 1:bn) gamma[g] <- switch(as.character((iy[g]-ix[g]+1)<3),
+                                       "TRUE"=(svd(x[,ix[g]:iy[g]],1,0,0)$d[1])^2,
+                                       "FALSE"=RSpectra::svds(x[,ix[g]:iy[g]],1,0,0)$d^2)
     gamma <- gamma/nobs
     gamma <- as.double(gamma)
     fit <- switch(algorithm,
