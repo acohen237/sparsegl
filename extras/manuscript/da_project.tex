@@ -350,7 +350,7 @@ Assume we have solved the problem for $\lambda_{s-1}$. We loop over $\mathcal{E}
 
 Otherwise, we run the KKT check on the full complement $\mathcal{E}^c$. Again, if there are any violators, we put them in $\mathcal{E}$ and go back to step 2. If there are no violators, we are done, and we move on to the next $\lambda$ in the sequence.
 
-The main difference between this algorithm and the three-step is that we are more careful to put potentially active groups into the active set. Whereas in the three-step algorithm we use the strong rule to put groups in $\mathcal{E}$ immediately, in the four-step algorithm we are more hesitant to commit to running the algorithm on the strong rule alone. We run the strong rule after convergence, but then double-check that the suspected 'active' groups are actually so by using the KKT check. Note that we couldn't simply add a KKT check right after the strong rule check: the latter uses the previous $\lambda$'s solution but the former uses the current solution.
+The main difference between this algorithm and the three-step is that we are more careful to put potentially active groups into the active set. Whereas in the three-step algorithm we use the strong rule to put groups in $\mathcal{E}$ immediately, in the four-step algorithm we are more hesitant to commit to running the algorithm on the strong rule alone. We run the strong rule after convergence, but then double-check that the suspected 'active' groups are actually so by using the KKT check. Note that we couldn't simply add a KKT check right after the strong rule check in the three-step algorithm: the latter uses the previous $\lambda$'s solution but the former uses the current solution.
 
 %\begin{algorithm}
 %  \caption{Four-step Algorithm\label{alg:fourStept}}
@@ -390,31 +390,29 @@ Since we generated the data according to the above equation, we know the true va
 
 To reiterate, we need to know beforehand how the predictors are divided up into groups; the algorithm takes that in, and does not learn it. Also note that the groups in $\beta$ are contiguous. The data needs to be grouped in such a way before we can apply our package.
 
-This package will estimate $\beta$ for a whole path of $\lambda$ weights. For each $\lambda$, it will find the optimal solution for that weight, according to equation <blank>. The lambda path can be explicitly specified as an input, but otherwise it creates its own set of $\lambda$, first finding the smallest value of $\lambda$ that forces all predictors to be zero, and decrementing logarithmically 100 times, to get a set of 100 decreasing $\lambda$'s. For this particular dataset, the lambdas range from $0.636$ to $0.00636$, with log-constant decremental step-size.
+This package will estimate $\hat{\beta}$ for a whole path of $\lambda$ weights. For each $\lambda$, it will find the optimal solution for that weight, according to equation \autoref{eq:sparsegl}. The lambda path can be explicitly specified as an input, but otherwise it specifies according to the following: first, by finding the smallest value of $\lambda$ that forces all predictors to be zero, and decrementing logarithmically 100 times, to get a set of 100 decreasing values $\{\lambda_1 > \lambda_2>\dots >\lambda_{100}\}$. For this particular dataset, the lambdas range from $0.636$ to $0.00636$, with log-constant decremental step-size.
 
-In addition to lambda we also need to set $\alpha$, which controls the relative emphasis on inter- vs intra- group sparsity. The default is $\alpha = 0.05$. Here is the code that runs the algorithm and stores the results in an object called mysparse1.
+In addition to lambda we also need to set $\alpha$, which controls the relative emphasis on inter- vs intra- group sparsity. The default is $\alpha = 0.05$. Here is the line of code that runs the algorithm and stores the results in an object called mysparse1:
 
 \begin{lstlisting}[language=R]
 mysparse1 <- sparsegl(x = X, y = y, group = groups,
-                         pen = "sparsegl", algorithm = "threestep")
+                         pen = "sparsegl", algorithm = "threestep").
 \end{lstlisting}
-With the above line of code, we have run the algorithm that solves the problem for the default lambda space, and created a sparsegl object. The main data in that object is the $B$ matrix, which gives the estimated beta vector for each value of $\lambda$. Note that, when calling this function, we must give it the group structure, and also specify the threestep vs the fourstep algorithm. Finally, the 'pen' flag specifies that we want to perform sparse group lasso; there is also the option to just perform group lasso.
+The main data in that object is the $B$ matrix, which gives the estimated beta vector for each value of $\lambda$; it will have dimension $p\times S$, where $p = \sum p_l$ is the total number of covariates and $S$ is the length of the lambda path. Note that, when calling this function, we must give it the group structure, and also specify the threestep vs the fourstep algorithm. Finally, the 'pen' flag specifies that we want to perform sparse group lasso; there is also the option to just perform group lasso.
 
-If we look now at the $B$ matrix, we see that, for a particular range of lambdas, the algorithm was able to deduce correctly the active groups, the active predictors within those groups, and accurately estimate their weights.
+Since the beta matrix gives fitted values for $\hat{\beta}$ accross the whole parameter path, it is common to use cross-validation to pick the best value of $\lambda$. It is also illustrative to look at a graph of the predictors against lambda, to see when the various predictors become active and get a sense of the accuracy of estimation. See figure  \autoref{fig:colorWeights}.
 
-<<see beta matrix>>
-
-It is illustrative to look at a graph of the predictors against lambda, to see when the various predictors become active. For visualization reasons, we instead plot on the x-axis, not lambda but an equivalent measure, the relative group norm. This is equivalent to graphing against lambda, since as lambda \underline{decreases}, the group-norm (which is the sum of $L_2$ norms of all the groups in beta) of the fitted beta increases. This type of graph is produced by a built-in function of the sparsegl package. All predictors are plotted, and each are colored by group membership, which is supplied as input. See the figure below.
+For visualization reasons, in this plot we do not put lambda on the x-axis, but an equivalent measure, the relative group norm of the estimated $\hat{\beta}$. This is equivalent to graphing against lambda, since as lambda \underline{decreases}, the group-norm (which is the sum of $L_2$ norms of all the groups in beta) of the fitted beta increases. All of the covariates are plotted, and each are colored by group membership, which is supplied as input.
 
 
 \begin{figure}[tb!]
 \centering
 \includegraphics[scale=0.5]{fitted_beta_weights.png}
- of predictor weights, colored by group, against the relative group norm. This shows how the groups and predictors enter and exit the model as a function of the $\lambda$ parameter.
+\caption{Covariate weights against relative group norm. Covariates colored by group.}
 \label{fig:colorWeights}
 \end{figure}
 
-We can see that there are four active groups (all other groups remain 0 for all values on the x-axis): black, green, red and blue. By comparing this graph with the true beta in the code above, we can get a measure of how the algorithm is performing across the various lambda values.
+We can see that there are four active groups (all other groups remain 0 for all values and are hidden on the x-axis): black, green, red and blue. By comparing this graph with the true beta in the code above, we can get a measure of how the algorithm is performing across the various lambda values.
 
 The black group (which we see has 5 members) quickly becomes active as lambda is decreased, and eventually all values settle at a value of 5. This is evidently the first group, which was set to five 5's. Similarly, the green group becomes active and converges to five $-5$'s; this is third group. The other two groups are active but have predictors that are 0--we can see that the red group, for instance, has a 5, a 2, and a $-5$, and must be the second group.
 
@@ -423,14 +421,14 @@ From comparing this output graph with the true $\beta$, with which the data was 
 
 \section{Comparison}
 
-First we will compare the two algorithms within the sparsegl function, threestep and fourstep, for both accuracy and speed. Then, we compare our package with two other competing packages, the SGL package (which performs sparse group lasso, without predictor-discarding rules) and the gglasso package (which only performs group lasso, but uses predictor-discarding rules). Since the main contribution of this package is a fast algorithm for sparse group lasso, we pay particular attention to the speed difference between our algorithms and SGL.
+First we will compare the two algorithms within the sparsegl function, threestep and fourstep, for both accuracy and speed. Then, we compare our package with two other competing packages, the \pkg{SGL} package (which performs sparse group lasso, without predictor-discarding rules) and the \pkg{gglasso} package (which only performs group lasso, but uses predictor-discarding rules). Since the main contribution of this package is a fast algorithm for sparse group lasso, we pay particular attention to the speed difference between our algorithms and SGL.
 
-For all comparisons, we use the R package microbenchmark, which compares two or more operations by performing them repeatedly (100 for our analysis) and collecting the times to perform each operation.
+For all comparisons, we use the \texttt{R} package \pkg{microbenchmark}, which compares two or more operations by performing them repeatedly (100 for our analysis) and collecting the times to perform each operation.
 
 \begin{figure}[tb!]
 \centering
-\includegraphics[scale=0.5]{threevsfour.png}
-\caption{A graph comparing the run-times of the threestep and fourstep algorithms. The fourstep algorithm is slightly faster on average.}
+\includegraphics[scale=0.5]{threefour.png}
+\caption{A graph comparing the run-times of the threestep and fourstep algorithms.}
 \label{fig:threevsfour}
 \end{figure}
 
@@ -441,7 +439,7 @@ Next, we compare our package with the gglasso package, which performs regular gr
 
 \begin{figure}[tb!]
 \centering
-\includegraphics[scale=0.5]{fourvsgglasso.png}
+\includegraphics[scale=0.5]{fourgglasso.png}
 \caption{A graph comparing the run-times of the fourstep algorithm with the gglasso package. The fourstep algorithm is slightly faster.}
 \label{fig:1fourvsgglasso}
 \end{figure}
@@ -453,7 +451,7 @@ Finally, we look at the only other existing package that performs sparse group l
 
 \begin{figure}[tb!]
 \centering
-\includegraphics[scale=0.5]{fourvsSGL.png}
+\includegraphics[scale=0.5]{fourSGL.png}
 \caption{A graph comparing the run-times of the fourstep algorithm with the SGL package. The fourstep algorithm is substantially faster than SGL in performing sparse group lasso.}
 \label{fig:fourvsSGL}
 \end{figure}
