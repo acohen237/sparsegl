@@ -427,7 +427,7 @@ For all comparisons, we use the \texttt{R} package \pkg{microbenchmark}, which c
 
 \begin{figure}[tb!]
 \centering
-\includegraphics[scale=0.5]{threefour3.png}
+\includegraphics[scale=0.5]{compare_threefour.png}
 \caption{A graph comparing the run-times of the threestep and fourstep algorithms.}
 \label{fig:threevsfour}
 \end{figure}
@@ -439,7 +439,7 @@ Next, we compare our package with the gglasso package, which performs regular gr
 
 \begin{figure}[tb!]
 \centering
-\includegraphics[scale=0.5]{fourgglasso3.png}
+\includegraphics[scale=0.5]{compare_fourgglasso.png}
 \caption{A graph comparing the run-times of the fourstep algorithm with the gglasso package. The fourstep algorithm is slightly faster.}
 \label{fig:1fourvsgglasso}
 \end{figure}
@@ -451,7 +451,7 @@ Finally, we look at the only other existing package that performs sparse group l
 
 \begin{figure}[tb!]
 \centering
-\includegraphics[scale=0.5]{fourSGL3.png}
+\includegraphics[scale=0.5]{compare_fourSGL.png}
 \caption{A graph comparing the run-times of the fourstep algorithm with the SGL package. The fourstep algorithm is substantially faster than SGL in performing sparse group lasso.}
 \label{fig:fourvsSGL}
 \end{figure}
@@ -467,37 +467,7 @@ We also compare the actual output, in particular the beta matrix, to confirm tha
 \section{Conclusion}
 
 
-Putting this here in case I screw up \citep{tibshirani2012strong}
 
-Then I want to put this \citep{yang2015fast} here.
-
-And finally I recall the work of \citep{simon2013sparse} for the people.
-
-\begin{algorithm}
-  \caption{Three-step Algorithm\label{alg:kalman}}
-  \begin{algorithmic}
-    \STATE {\bf Input:} $\lambda_0,\ \lambda_1,\ \dots$, $\mathcal{E}$, $\mathcal{A}$
-    \STATE Set $\mathcal{E}$ and $\mathcal{A}$ to $\emptyset$ \COMMENT{Step 0}
-    \FOR{$i=1$ to  $n$}
-    \STATE $\begin{aligned} x_{i}
-      &\leftarrow d + T x_{i-1|i-1}, & P_i &\leftarrow Q + T P_{i-1|i-1}
-      T^\top\end{aligned}$ \COMMENT{Predict current state}
-    \STATE $\begin{aligned}\widetilde{y}_i
-      &\leftarrow c + Z  x_i, & F_i &\leftarrow G + Z P_i
-      Z^\top\end{aligned}$ \COMMENT{Predict current observation}
-    \STATE $\begin{aligned}v_i&\leftarrow y_i-\widetilde{y}_i& K_i&
-      \leftarrow P_i Z^\top F^{-1}\end{aligned}$ \COMMENT{Forecast error and 
-    Kalman gain}
-    \STATE $\begin{aligned} x_{i|i}
-      &\leftarrow  x_i + K_i v_i, & P_{i|i} &\leftarrow P_i - P_iZ^\top
-      K_i\end{aligned}$ \COMMENT{Update}
-    \STATE $\ell(\theta) = \ell(\theta) -v_i^\top F^{-1}v_i - \log(|F_i|)$
-    \ENDFOR
-    \RETURN $\widetilde{Y}=\{\widetilde{y}_i\}_{i=1}^n,\  x=\{ x_i\}_{i=1}^n,\
-    \widetilde{X}=\{x_{i|i}\}_{i=1}^n,\ P=\{P_i\}_{i=1}^n,\
-    \widetilde{P}=\{P_{i|i}\}_{i=1}^n,\ \ell(\theta)$
-  \end{algorithmic}
-\end{algorithm}
 
 \bibliographystyle{plainnat}
 \bibliography{refs.bib}
