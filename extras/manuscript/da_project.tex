@@ -464,9 +464,23 @@ Recall the dataset we used for these comparisons, with $n=100$ and $p=200$. It i
 
 We also compare the actual output, in particular the beta matrix, to confirm that they are arriving at the same answers. For this comparison, the lambda path is about the same, but for the other packages (gglasso, SGL), the lambda path will in general be different, so some care must be taken in comparing the beta matrices.
 
+\section{Real data example}
+
+By this point we have demonstrated how our package performs sparse group lasso, and that it is much faster than the competing package \pkg{SGL}. In this last section before the conclusion, we utilize the \pkg{sparsegl} package to analyze a real-world data set, concerning genetic markers for breast cancer survival time.
+
+The dimensions of the data are as follows: the design matrix is $ 240\times 7399$, that is, $240$ observations and $7399$ variables. The variables are 
+
 \section{Conclusion}
 
+In this paper we have described two new algorithms to perform sparse group lasso, and demonstrated the implementation of this in a new \texttt{R} package, \pkg{sparsegl}. We describe the majorization-minimization proceedure that underlies the update step, and explain how this results in computation savings and also why it converges to a global minimum. By modifying and using the discarding rules (sequential strong rule) from the paper \citep{tibshirani2012strong} in the context of the sparse group lasso, and implementing the algorithms in the programming language Fortran, we achieve a great reduction in computation time from that of the other existing sparse group lasso \texttt{R} package \pkg{SGL}. 
 
+In the Example section of the paper we show, first on a simulated data set and then on a real-world data set, how the package is used in practice. The input needed for the package is, as usual, a design matrix and a response vector, as well as the group information for the covariates (this is not learned by the model); there are other, optional parameters, particularly the path for the $\lambda$ parameter, but we briefly describe how the package selects its own path for $\lambda$, which is in general what we do in this paper when using \pkg{sparsegl}. The output is a sparsegl object, which contains several pieces of information, but of particular interest is the matrix of all $\hat{\beta}$ estimates, one for each value of $\lambda$, organized into a matrix. Since one often does not know which value of $\lambda$ to use beforehand, we recommend using cross-validation to choose the proper $\lambda$ from the (generated) path, and the corresponding estimate of covariates. This is briefly demonstrated in the (real-world) breast cancer data set.
+
+In the comparison section of the paper, where we look at performance speeds on the two algorithms in our package (the three-step and four-step algorithms), there is not a substantial difference in times. Nevertheless, the algorithms should perform differently, depending on the data set, since they utilize the strong rule differently; therefore a direction of further research would be to try and find conditions where one algorithm would clearly outperform the other. It is possible, of course, that this is not the case, that the four step algorithm is not more substantively more efficient thant the three step.
+
+In addition to the above-mentioned issue, there are several other potential avenues of futher research. We have explored two algorithms, both using the same update step and the same strong rule, put together in different ways. There is potential utility in looking at different discarding rules, since this already makes a huge difference in performance. The strong rule is, as described in the relevant section, a heuristic that is occasionally wrong, which means that there is room for improvement. We might also look at different ways of putting these together, similar to the three step and four step algorithms. Finally, since the sparse group lasso optimization problem is most useful in a high-dimensional context, where there are many more parameters than observations, and where we anticipate a large degree of sparsity, we have discussed modifying the code to explicitly incorporate sparse-matrix techniques, which might increase the efficiency of the program, and even make the package amenable to real-world problems that are currently out of the range of feasability due to the sheer volume of data necessary.
+
+ 
 
 
 \bibliographystyle{plainnat}
