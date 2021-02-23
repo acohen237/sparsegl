@@ -3,7 +3,8 @@
 \BOOKMARK [2][-]{subsection.2.1}{Overview of the algorithm}{section.2}% 3
 \BOOKMARK [2][-]{subsection.2.2}{KKT Check and the Strong Rule}{section.2}% 4
 \BOOKMARK [2][-]{subsection.2.3}{The three-step and four-step algorithms}{section.2}% 5
-\BOOKMARK [1][-]{section.3}{Example}{}% 6
-\BOOKMARK [1][-]{section.4}{Comparison}{}% 7
-\BOOKMARK [1][-]{section.5}{Real data example}{}% 8
-\BOOKMARK [1][-]{section.6}{Conclusion}{}% 9
+\BOOKMARK [1][-]{section.3}{Examples}{}% 6
+\BOOKMARK [2][-]{subsection.3.1}{Simulated data}{section.3}% 7
+\BOOKMARK [2][-]{subsection.3.2}{Lymphoma data set}{section.3}% 8
+\BOOKMARK [1][-]{section.4}{Comparison}{}% 9
+\BOOKMARK [1][-]{section.5}{Conclusion}{}% 10

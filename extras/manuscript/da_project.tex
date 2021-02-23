@@ -74,7 +74,7 @@ The sparse group lasso, like the other two lassos, does not have a closed form s
 
 In this paper we make use of a heuristic called the Strong Rule \citep{tibshirani2012strong} to help solve this problem, with some success. The strong rule uses the solution at the previous $\lambda_{s-1}$ to predict which groups will remain inactive upon solution at the current $\lambda_s$, and discards those groups before entering into the algorithm. If a significant number of groups are thrown out before entering the algorithm, convergence time can improve significantly.
 
-The \texttt{R} package we have create has two algorithms, both using the strong rule, but in slightly different ways: the \textbf{three-step algorithm} and the \textbf{four-step algorithm}. Although they perform similarly for the simulated data set used in later sections of this paper, it is suspected that they will each be useful for different scenarios, depending on the size of the data, size of the predictors, and the true underlying group structure. This is explored in the last section before the conclusion.
+The \texttt{R} package we have create has two algorithms, both using the strong rule, but in slightly different ways: the \textbf{three-step algorithm} and the \textbf{four-step algorithm}. Although they perform similarly for the simulated data set used in later sections of this paper, it is suspected that they will each be useful for different scenarios, depending on the size of the data, size of the predictors, and the true underlying group structure. 
 
 %In this paper we consider solving the sparse group lasso for a whole range of parameters $(\lambda_1,\dots \lambda_n)$ rather than a single value, and a computational problem presents itself:  can we speed up the algorithm at a  given $\lambda_i$ by utilizing the solution at the previous $\lambda_{(i-1)}$? A heuristic solution to this, used in the present paper, is the Strong Rule \citep{tibshirani2012strong}, which predicts which predictor (groups) will remain zero at the solution for $\lambda_i$ and throws them out. If a significant number of groups are thrown out before entering the algorithm, convergence time can iprove significantly.
 
@@ -367,9 +367,11 @@ The main difference between this algorithm and the three-step is that we are mor
 %\end{algorithm}
 
 
-\section{Example}
+\section{Examples}
 
-In this section we provide a worked-through example of how the package is used. 
+In this section we provide two worked-through examples of how the package is used. We first go through a simulated data set, and show how the algorithm can recover the relevant groups and the weights of covariates within them. Then we go over a messier, larger, real-world data set, and show how one might use this for inference in practice. 
+
+\subsection{Simulated data}
 
 First, we generate some random data. There will be $n=100$ observations and $p=200$ predictors. The predictors will be partitioned into groups of 5, so e.g. the first five predictors form the first group, and so on. Some of the groups will be inactive ($0$), and within a given active group, some of the variables will be $0$. The goal is to learn exactly this information.
 
@@ -416,7 +418,26 @@ We can see that there are four active groups (all other groups remain 0 for all 
 
 The black group (which we see has 5 members) quickly becomes active as lambda is decreased, and eventually all values settle at a value of 5. This is evidently the first group, which was set to five 5's. Similarly, the green group becomes active and converges to five $-5$'s; this is third group. The other two groups are active but have predictors that are 0--we can see that the red group, for instance, has a 5, a 2, and a $-5$, and must be the second group.
 
-From comparing this output graph with the true $\beta$, with which the data was generated, one might ask what the optimal $\lambda$, is, which recovers the true structure. In this case, it appears the small end of the lambda path results in the most accurate estimates.
+From comparing this output graph with the true $\beta$, with which the data was generated, one might ask what the optimal $\lambda$, is, which recovers the true structure. In this case, it appears the small end of the lambda path results in the most accurate estimates. In the next example, we show how one might use cross-validation to select the optimal parameter $\lambda$.
+
+\subsection{Lymphoma data set}
+
+This data set concerns suvival time for patients with B cell lymphoma, with genetic covariates as possible explanatory variables. The dimensions of the data are as follows: the design matrix is $ 240\times 7399$, that is, $240$ observations and $7399$ variables. The response is survival time (in years), and the variables measure gene expression over a large set of genetic markers. The goal is to predict lymphoma survival from patient gene expression.
+
+For this analysis, we utilized previous research with this data set to get the groupings of the variables into clusters. With this, we have that the 7399 variables (levels of gene expression) are sorted into 4,37 groups.
+
+Running \pkg{sparsegl} on this larger data set took about 4 seconds. However, since we did not have the baseline 'truth' about which groups were active, we ran 10-fold cross-validation, which took about 1 minute. Since there are 100 $\lambda$'s in the paramter space, this means that we ran \pkg{sparsegl} 1000 times in that time.
+
+The results are in \autoref{fig:breastCancer}; as can be seen in this figure, it is not easy to determine visually which groups and variables are active. The vertical black line represents the optimal value of lambda (translated into the relative group norm at that lambda) determined by cross-validation.
+
+
+\begin{figure}[tb!]
+\centering
+\includegraphics[scale=0.5]{breast_cancer_w_vertline.png}
+\caption{Covariate weight agains relative group norm. Vertical line gives optimal value via cross-validation.}
+\label{fig:breastCancer}
+\end{figure}
+
 
 
 \section{Comparison}
@@ -464,11 +485,11 @@ Recall the dataset we used for these comparisons, with $n=100$ and $p=200$. It i
 
 We also compare the actual output, in particular the beta matrix, to confirm that they are arriving at the same answers. For this comparison, the lambda path is about the same, but for the other packages (gglasso, SGL), the lambda path will in general be different, so some care must be taken in comparing the beta matrices.
 
-\section{Real data example}
+%\section{Real data example}
 
-By this point we have demonstrated how our package performs sparse group lasso, and that it is much faster than the competing package \pkg{SGL}. In this last section before the conclusion, we utilize the \pkg{sparsegl} package to analyze a real-world data set, concerning genetic markers for breast cancer survival time.
+%By this point we have demonstrated how our package performs sparse group lasso, and that it is much faster than the competing package \pkg{SGL}. In this last section before the conclusion, we utilize the \pkg{sparsegl} package to analyze a real-world data set, concerning genetic markers for breast cancer survival time.
 
-The dimensions of the data are as follows: the design matrix is $ 240\times 7399$, that is, $240$ observations and $7399$ variables. The variables are 
+%The dimensions of the data are as follows: the design matrix is $ 240\times 7399$, that is, $240$ observations and $7399$ variables. The variables are 
 
 \section{Conclusion}
 
@@ -476,7 +497,7 @@ In this paper we have described two new algorithms to perform sparse group lasso
 
 In the Example section of the paper we show, first on a simulated data set and then on a real-world data set, how the package is used in practice. The input needed for the package is, as usual, a design matrix and a response vector, as well as the group information for the covariates (this is not learned by the model); there are other, optional parameters, particularly the path for the $\lambda$ parameter, but we briefly describe how the package selects its own path for $\lambda$, which is in general what we do in this paper when using \pkg{sparsegl}. The output is a sparsegl object, which contains several pieces of information, but of particular interest is the matrix of all $\hat{\beta}$ estimates, one for each value of $\lambda$, organized into a matrix. Since one often does not know which value of $\lambda$ to use beforehand, we recommend using cross-validation to choose the proper $\lambda$ from the (generated) path, and the corresponding estimate of covariates. This is briefly demonstrated in the (real-world) breast cancer data set.
 
-In the comparison section of the paper, where we look at performance speeds on the two algorithms in our package (the three-step and four-step algorithms), there is not a substantial difference in times. Nevertheless, the algorithms should perform differently, depending on the data set, since they utilize the strong rule differently; therefore a direction of further research would be to try and find conditions where one algorithm would clearly outperform the other. It is possible, of course, that this is not the case, that the four step algorithm is not more substantively more efficient thant the three step.
+In the comparison section of the paper, where we look at performance speeds on the two algorithms in our package (the three-step and four-step algorithms), there is not a substantial difference in times. Nevertheless, the algorithms should perform differently, depending on the data set, since they utilize the strong rule differently; therefore a direction of further research would be to try and find conditions where one algorithm would clearly outperform the other. It is possible, of course, that this is not the case, that the four step algorithm is not substantively more efficient thant the three step.
 
 In addition to the above-mentioned issue, there are several other potential avenues of futher research. We have explored two algorithms, both using the same update step and the same strong rule, put together in different ways. There is potential utility in looking at different discarding rules, since this already makes a huge difference in performance. The strong rule is, as described in the relevant section, a heuristic that is occasionally wrong, which means that there is room for improvement. We might also look at different ways of putting these together, similar to the three step and four step algorithms. Finally, since the sparse group lasso optimization problem is most useful in a high-dimensional context, where there are many more parameters than observations, and where we anticipate a large degree of sparsity, we have discussed modifying the code to explicitly incorporate sparse-matrix techniques, which might increase the efficiency of the program, and even make the package amenable to real-world problems that are currently out of the range of feasability due to the sheer volume of data necessary.
 
